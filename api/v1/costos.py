@@ -12,8 +12,10 @@ import redis
 import pickle
 import io
 import time
+import os
+from dotenv import load_dotenv
 
-
+load_dotenv()
 router = APIRouter()
 
 #Funciones
@@ -25,8 +27,14 @@ async def id_to_string_process(cursor, array):
         array.append(item)
     return array
 
+REDISHOST = os.getenv("REDISHOST")
+REDISPORT = os.getenv("REDISPORT")
+REDISUSER = os.getenv("REDISUSER")
+REDISPASSWORD = os.getenv("REDISPASSWORD")
+
+
 #Conectandose al servidor de redis, que entiendo esta en mi conteder de dockers
-RedisDockers = redis.Redis(host='localhost', port=6379, db=0)
+RedisDockers = redis.Redis(host=REDISHOST, port=REDISPORT,username=REDISUSER,password=REDISPASSWORD, db=0)
 
 @router.get("/GetItems", response_model=List[ActualPlanta])
 async def read_items():
