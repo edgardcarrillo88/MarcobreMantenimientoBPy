@@ -36,33 +36,16 @@ REDISPASSWORD = os.getenv("REDISPASSWORD")
 #Conectandose al servidor de redis, que entiendo esta en mi conteder de dockers
 RedisDockers = redis.Redis(host=REDISHOST, port=REDISPORT,username=REDISUSER,password=REDISPASSWORD, db=0)
 
-@router.get("/GetItems", response_model=List[ActualPlanta])
-async def read_items():
-    cursor = db.actualplanta.find({"Mes": {"$ne": 0}})
-    all_items = []
-    
-    
-    async for item in cursor:
-        item['_id'] = str(item['_id'])
-        all_items.append(item)
-        #print(item)    
-    df = pd.DataFrame(all_items)
-    summary = df.groupby('Planta')['Monto'].sum().reset_index()
-    transformed_data = summary.to_dict(orient='records')
-    print("------")
-    print("Esta es la data trasnformada", transformed_data)
-    print("------")
-    return transformed_data
-
-
-@router.post("/UpdateDataFinanzas")
-async def Update_Data():
+#Proceso de Finanzas
+@router.post("/UpdateDataFinanzasToRedis")
+async def Update_Data_Finanzas_To_Redis():
     
     All_Data_CeCo = []
     All_Data_ClaseCostos = []
     All_Data_Partidas = []  
     
-    Process_Status_Data_Finanzas = RedisDockers.get('Process_Status_Data_Finanzas')    
+    Process_Status_Data_Finanzas = RedisDockers.get('Process_Status_Data_Finanzas')
+    
     if Process_Status_Data_Finanzas is None or Process_Status_Data_Finanzas.decode('utf-8') != 'completed':
         
         RedisDockers.set('Process_Status_Data_Finanzas','in progess')
@@ -80,6 +63,8 @@ async def Update_Data():
         df_ClaseCostos = pd.DataFrame(All_Data_ClaseCostos)
         df_Partidas = pd.DataFrame(All_Data_Partidas)
         
+        print(len(df_ClaseCostos))
+        
         df_CeCo = df_CeCo.drop_duplicates(subset=['CeCo'])
         df_ClaseCostos = df_ClaseCostos.drop_duplicates(subset=['ClaseCosto'])
         df_Partidas = df_Partidas.drop_duplicates(subset=['Partida'])
@@ -95,9 +80,10 @@ async def Update_Data():
             })
 
 
-@router.get('/GetDataFinanzasRedis')
-async def Get_Data():
+@router.get('/GetDataFinanzasFromRedis')
+async def Get_Data_Finanzas_From_Redis():
     
+    print("Obteniendo datos de finanzas de redis")
     pickled_CeCo = RedisDockers.get('df_CeCo')
     pickled_ClaseCostos =RedisDockers.get('df_ClaseCostos')
     pickled_Partidas =RedisDockers.get('df_Partidas')
@@ -114,6 +100,8 @@ async def Get_Data():
     data_ClaseCostos = df_ClaseCostos.to_dict(orient='records')
     data_Partidas = df_Partidas.to_dict(orient='records')
     
+    print("Finalizando el proceso de Obteniendo datos de finanzas desde redis")
+    
     return {
         "data_CeCo": data_CeCo,
         "data_ClaseCostos": data_ClaseCostos,
@@ -121,7 +109,8 @@ async def Get_Data():
     }
 
 
-@router.post("/UpdateDataProvisiones")
+#Proceso de Provisiones
+@router.post("/UpdateDataProvisionesToRedis")
 async def Update_Data():
     All_Data_Provisiones = []
     
@@ -144,7 +133,120 @@ async def Update_Data():
             "Message": "Oki Doki"
         }
 
-@router.post("/UpdateDataActualRedis/{CurrentMonth}")
+
+@router.get("/GetDataProvisionesFromRedis")
+async def lalora():
+
+    print("Ejecutando get data de provisiones redis")
+    pickled_df = RedisDockers.get('df_Provisiones')
+    df_combined = pickle.loads(pickled_df)
+    # print(df_combined.columns)
+
+    def generate():
+        buffer = io.StringIO()
+        yield '['
+        first = True
+
+        # Configura el tamaño del chunk
+        chunk_size = 1000
+        for i in range(0, len(df_combined), chunk_size):
+            chunk = df_combined.iloc[i:i+chunk_size]
+            if not first:
+                buffer.write(',')
+            first = False
+            # Convierte el chunk a JSON
+            buffer.write(chunk.to_json(orient='records')[1:-1])
+            yield buffer.getvalue()
+            buffer.truncate(0)
+            buffer.seek(0)
+        yield ']'
+
+    # Retorna la respuesta en streaming
+    print("Finalizado el proceso de obtencion de provisiones desde redis")
+    return StreamingResponse(generate(), media_type='application/json')    
+
+
+#Proceso de Budget
+@router.post("/UpdateDataBudgetToRedis")
+async def Update_Data_Budget_Redis():
+    
+    print("Iniciando proceso de carga de actual en Redis")
+    All_Data_Budget = []
+    
+    Process_Status_Data_Budget = RedisDockers.get('Process_Status_Data_Budget')
+    if Process_Status_Data_Budget is None or Process_Status_Data_Budget != 'completed':
+        
+        print("Obteniendo datos actual de redis")
+
+        pickled_df = RedisDockers.get('df_combined')
+        df_Actual = pickle.loads(pickled_df)
+        print(df_Actual.columns)
+        
+        RedisDockers.set('Process_Status_Data_Budget','in progess')
+        print("Obteniendo datos budget de MongoDB")
+        CursorBudget = db.budgetplanta.find()
+        
+        print("Procesando la información del Budget")
+        await id_to_string_process(CursorBudget,All_Data_Budget)
+        df_Budget_Mongo = pd.DataFrame(All_Data_Budget)
+        
+        columnas_budget = [
+        "Gerencia", "Planta", "Area", "SubArea", "Categoria", 
+        "CeCo", "DescripcionCeCo", "ClaseCosto", "DescripcionClaseCosto", "Responsable", 
+        "Especialidad", "Partida", "DescripcionPartida", 
+        "Mes","Monto","PptoForecast","TxtPedido","CN","TAG","Justificacion","Proveedor","OC","Posicion","Fecha",
+        ]
+        
+        df_Budget = df_Budget_Mongo[columnas_budget]
+        df_Budget['Mes'] = pd.to_datetime(df_Budget['Mes'].apply(lambda x: date(2024, x, 1)))
+        df_Budget['Mes'] = pd.to_datetime(df_Budget['Mes'], unit='ms').dt.strftime('%Y-%m-%dT%H:%M:%S')
+        print(df_Budget.columns)
+        
+        df_combined = pd.concat([df_Actual, df_Budget], ignore_index=True)
+        df_combined['CN'] = df_combined['CN'].fillna(0)
+        
+        RedisDockers.set('df_Budget',pickle.dumps(df_combined))
+        RedisDockers.set('Process_Status_Data_Budget','completed')
+        
+        return{
+            "Message": "Oki Doki"
+        }
+
+
+@router.get("/GetDataBudgetFromRedis")
+async def lalora():
+
+    print("Ejecutando get data de Budget from redis")
+    pickled_df = RedisDockers.get('df_Budget')
+    df_Budget = pickle.loads(pickled_df)
+    # print(df_combined.columns)
+
+    def generate():
+        buffer = io.StringIO()
+        yield '['
+        first = True
+
+        # Configura el tamaño del chunk
+        chunk_size = 1000
+        for i in range(0, len(df_Budget), chunk_size):
+            chunk = df_Budget.iloc[i:i+chunk_size]
+            if not first:
+                buffer.write(',')
+            first = False
+            # Convierte el chunk a JSON
+            buffer.write(chunk.to_json(orient='records')[1:-1])
+            yield buffer.getvalue()
+            buffer.truncate(0)
+            buffer.seek(0)
+        yield ']'
+
+    # Retorna la respuesta en streaming
+    print("Finalizado el proceso de obtencion de Budget desde redis")
+    return StreamingResponse(generate(), media_type='application/json')    
+
+
+#Proceso de Actual
+@router.post("/UpdateDataActualToRedis/{CurrentMonth}")
 async def Update_Data(CurrentMonth: int):
     
     All_Data_Actual = [] 
@@ -174,23 +276,7 @@ async def Update_Data(CurrentMonth: int):
         
         return{
             "Message": "Oki Doki"
-        }
-        
-
-@router.get("/GetAllDataProvisiones", response_model=List[Provisiones])
-async def read_items():
-    cursor = db.provisiones.find()
-    all_items = []
-    
-    
-    async for item in cursor:
-        item['_id'] = str(item['_id'])
-        all_items.append(item)
-        
-    df = pd.DataFrame(all_items)
-    df = df.where(pd.notnull(df), None)  
-    transformed_data = df.to_dict(orient='records')
-    return transformed_data
+        }    
 
 
 @router.get("/PyProcessDataActual/{ProvMonth}")
@@ -209,11 +295,6 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
         print("Definiendo variables")
         all_items_Actual = []
         
-
-        # fecha_actual = pd.to_datetime("today").normalize() - pd.Timedelta(days=ProvMonth)
-        # mes_actual = fecha_actual.month
-        # year_actual = datetime.now().year
-
         #Proceso Datos de Finanzas
         
         print("Obteniendo datos de finanzas")
@@ -234,7 +315,6 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
         Undo_Pickled_Actual = RedisDockers.get('df_Actual')
         dfActual_redis = pickle.loads(Undo_Pickled_Actual)
         
-             
         print("Procesando datos Actual")
         
         await id_to_string_process(cursorActual,all_items_Actual)
@@ -278,11 +358,9 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
         
         print(f"provision 3 (Condicional): {dfProvision_redis.shape[0]}")
         
-        if dfProvision_redis.shape[0]>0:
-                      
+        if dfProvision_redis.shape[0]>0:                 
             print("Procesando datos provisiones")  
             
-         
             
             dfProvision = dfProvision.where(pd.notnull(dfProvision), None) 
             dfProvision.loc[dfProvision['Moneda'] == 'PEN', 'Monto'] = dfProvision['Monto'] / 3.7
@@ -366,15 +444,14 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
     return ({
             "Message": "Oki Doki"
             })
-    
-    
+
 
 @router.get("/GetDataActual")
 async def lalora():
+    print("Obteniendo datos actual de redis")
 
     pickled_df = RedisDockers.get('df_combined')
     df_combined = pickle.loads(pickled_df)
-    print(df_combined.columns)
 
     def generate():
         buffer = io.StringIO()
@@ -396,35 +473,42 @@ async def lalora():
         yield ']'
 
     # Retorna la respuesta en streaming
+    print("Finalizando el proceso de obtención de Actual desde Redis")
     return StreamingResponse(generate(), media_type='application/json')    
 
 
 
-@router.get("/PruebaProvisiones")
-async def lalora():
 
-    pickled_df = RedisDockers.get('df_Provisiones')
-    df_combined = pickle.loads(pickled_df)
-    print(df_combined.columns)
+# @router.get("/GetItems", response_model=List[ActualPlanta])
+# async def read_items():
+#     cursor = db.actualplanta.find({"Mes": {"$ne": 0}})
+#     all_items = []
+    
+    
+#     async for item in cursor:
+#         item['_id'] = str(item['_id'])
+#         all_items.append(item)
+#         #print(item)    
+#     df = pd.DataFrame(all_items)
+#     summary = df.groupby('Planta')['Monto'].sum().reset_index()
+#     transformed_data = summary.to_dict(orient='records')
+#     print("------")
+#     print("Esta es la data trasnformada", transformed_data)
+#     print("------")
+#     return transformed_data
 
-    def generate():
-        buffer = io.StringIO()
-        yield '['
-        first = True
 
-        # Configura el tamaño del chunk
-        chunk_size = 1000
-        for i in range(0, len(df_combined), chunk_size):
-            chunk = df_combined.iloc[i:i+chunk_size]
-            if not first:
-                buffer.write(',')
-            first = False
-            # Convierte el chunk a JSON
-            buffer.write(chunk.to_json(orient='records')[1:-1])
-            yield buffer.getvalue()
-            buffer.truncate(0)
-            buffer.seek(0)
-        yield ']'
-
-    # Retorna la respuesta en streaming
-    return StreamingResponse(generate(), media_type='application/json')    
+# @router.get("/GetAllDataProvisiones", response_model=List[Provisiones])
+# async def read_items():
+#     cursor = db.provisiones.find()
+#     all_items = []
+    
+    
+#     async for item in cursor:
+#         item['_id'] = str(item['_id'])
+#         all_items.append(item)
+        
+#     df = pd.DataFrame(all_items)
+#     df = df.where(pd.notnull(df), None)  
+#     transformed_data = df.to_dict(orient='records')
+#     return transformed_data
