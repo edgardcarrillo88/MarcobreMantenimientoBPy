@@ -45,6 +45,7 @@ async def Update_Data_Finanzas_To_Redis():
     All_Data_Partidas = []  
     
     Process_Status_Data_Finanzas = RedisDockers.get('Process_Status_Data_Finanzas')
+    print(Process_Status_Data_Finanzas)
     
     if Process_Status_Data_Finanzas is None or Process_Status_Data_Finanzas.decode('utf-8') != 'completed':
         
