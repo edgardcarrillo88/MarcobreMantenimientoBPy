@@ -117,7 +117,7 @@ async def Update_Data():
     
     print("Iniciando proceso de carga de datos de provisiones en Redis")
     Process_Status_Data_Provisiones = RedisDockers.get('Process_Status_Data_Provisiones')
-    if Process_Status_Data_Provisiones is None or Process_Status_Data_Provisiones != 'completed':
+    if Process_Status_Data_Provisiones is None or Process_Status_Data_Provisiones != 'in progess':
         
         RedisDockers.set('Process_Status_Data_Provisiones','in progess')
         CursorProvisiones = db.provisiones.find()
@@ -175,7 +175,7 @@ async def Update_Data_Budget_Redis():
     All_Data_Budget = []
     
     Process_Status_Data_Budget = RedisDockers.get('Process_Status_Data_Budget')
-    if Process_Status_Data_Budget is None or Process_Status_Data_Budget != 'completed':
+    if Process_Status_Data_Budget is None or Process_Status_Data_Budget != 'in progess':
         
         print("Obteniendo datos actual de redis")
 
@@ -253,7 +253,7 @@ async def Update_Data(CurrentMonth: int):
     All_Data_Actual = [] 
     
     Process_Status_Data_Actual = RedisDockers.get('Process_Status_Data_Actual')
-    if Process_Status_Data_Actual is None or Process_Status_Data_Actual != 'completed':
+    if Process_Status_Data_Actual is None or Process_Status_Data_Actual != 'in progess':
         
         print("Iniciando Proceso")
         RedisDockers.set('Process_Status_Data_Actual','in progress')
@@ -288,7 +288,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
     start_time = time.time()
     
     processing_status = RedisDockers.get('processing_status')
-    if processing_status is None or processing_status.decode('utf-8') != 'completed':
+    if processing_status is None or processing_status.decode('utf-8') != 'in progess':
         print("Inicio de procesamiento de datos")
     
         #Variables
