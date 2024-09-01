@@ -50,7 +50,7 @@ async def Update_Data_Finanzas_To_Redis():
     if Process_Status_Data_Finanzas is None or Process_Status_Data_Finanzas.decode('utf-8') != 'in progess':
         
         RedisDockers.set('Process_Status_Data_Finanzas','in progess')
-        print("Iniciando Carga de datos de finanzas a Memoria Cache")
+        print("Iniciando Carga de datos de finanzas a Redis")
         
         CursorCeCo = db.cecos.find()
         cursorClaseCosto = db.clasecostos.find()
@@ -64,7 +64,7 @@ async def Update_Data_Finanzas_To_Redis():
         df_ClaseCostos = pd.DataFrame(All_Data_ClaseCostos)
         df_Partidas = pd.DataFrame(All_Data_Partidas)
         
-        print(len(df_ClaseCostos))
+        #print(len(df_ClaseCostos))
         
         df_CeCo = df_CeCo.drop_duplicates(subset=['CeCo'])
         df_ClaseCostos = df_ClaseCostos.drop_duplicates(subset=['ClaseCosto'])
@@ -74,7 +74,10 @@ async def Update_Data_Finanzas_To_Redis():
         RedisDockers.set('df_CeCo',pickle.dumps(df_CeCo))
         RedisDockers.set('df_ClaseCostos',pickle.dumps(df_ClaseCostos))
         RedisDockers.set('df_Partidas',pickle.dumps(df_Partidas))
+        print("Proceso de Carga de datos de finanzas a Redis")
         RedisDockers.set('Process_Status_Data_Finanzas','completed')
+        
+        
         
         return ({
             "Message": "Oki Doki"
@@ -112,13 +115,13 @@ async def Get_Data_Finanzas_From_Redis():
 
 #Proceso de Provisiones
 @router.post("/UpdateDataProvisionesToRedis")
-async def Update_Data():
+async def Update_Data_Provisiones_To_Redis():
     All_Data_Provisiones = []
     
-    print("Iniciando proceso de carga de datos de provisiones en Redis")
     Process_Status_Data_Provisiones = RedisDockers.get('Process_Status_Data_Provisiones')
     if Process_Status_Data_Provisiones is None or Process_Status_Data_Provisiones != 'in progess':
         
+        print("Iniciando proceso de carga de datos de provisiones en Redis")
         RedisDockers.set('Process_Status_Data_Provisiones','in progess')
         CursorProvisiones = db.provisiones.find()
         
@@ -129,6 +132,8 @@ async def Update_Data():
         
         RedisDockers.set('df_Provisiones',pickle.dumps(df_Provisiones))
         RedisDockers.set('Process_Status_Data_Provisiones','completed')
+        print("Finalizando el proceso de carga de datos de provisiones en Redis")
+        
         
         return{
             "Message": "Oki Doki"
@@ -136,7 +141,7 @@ async def Update_Data():
 
 
 @router.get("/GetDataProvisionesFromRedis")
-async def lalora():
+async def Get_Data_Provisiones_From_Redis():
 
     print("Ejecutando get data de provisiones redis")
     pickled_df = RedisDockers.get('df_Provisiones')
@@ -178,10 +183,10 @@ async def Update_Data_Budget_Redis():
     if Process_Status_Data_Budget is None or Process_Status_Data_Budget != 'in progess':
         
         print("Obteniendo datos actual de redis")
-
+        
         pickled_df = RedisDockers.get('df_combined')
         df_Actual = pickle.loads(pickled_df)
-        print(df_Actual.columns)
+        #print(df_Actual.columns)
         
         RedisDockers.set('Process_Status_Data_Budget','in progess')
         print("Obteniendo datos budget de MongoDB")
@@ -208,6 +213,7 @@ async def Update_Data_Budget_Redis():
         
         RedisDockers.set('df_Budget',pickle.dumps(df_combined))
         RedisDockers.set('Process_Status_Data_Budget','completed')
+        print("Finalizando proceso de obtención de datos actual desde redis")
         
         return{
             "Message": "Oki Doki"
@@ -215,7 +221,7 @@ async def Update_Data_Budget_Redis():
 
 
 @router.get("/GetDataBudgetFromRedis")
-async def lalora():
+async def Get_Data_Budget_From_Redis():
 
     print("Ejecutando get data de Budget from redis")
     pickled_df = RedisDockers.get('df_Budget')
@@ -248,14 +254,14 @@ async def lalora():
 
 #Proceso de Actual
 @router.post("/UpdateDataActualToRedis/{CurrentMonth}")
-async def Update_Data(CurrentMonth: int):
+async def Update_Data_Actual_To_Redis(CurrentMonth: int):
     
     All_Data_Actual = [] 
     
     Process_Status_Data_Actual = RedisDockers.get('Process_Status_Data_Actual')
     if Process_Status_Data_Actual is None or Process_Status_Data_Actual != 'in progess':
         
-        print("Iniciando Proceso")
+        print("Iniciando Proceso de carga de datos de actual a Redis")
         RedisDockers.set('Process_Status_Data_Actual','in progress')
         
         print("Obteniendo Datos de MongoDB")
@@ -273,7 +279,8 @@ async def Update_Data(CurrentMonth: int):
         print("Guardando datos en Redis")
         RedisDockers.set('df_Actual',pickle.dumps(df_Actual))
         RedisDockers.set('Process_Status_Data_Actual','completed')
-        print("Finalizado")
+        print("Finalizando Proceso de Carga de datos de actual a Redis")
+
         
         return{
             "Message": "Oki Doki"
@@ -287,6 +294,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
     
     start_time = time.time()
     
+    print("Iniciando proceso de procesamiento de datos de Actual")
     processing_status = RedisDockers.get('processing_status')
     if processing_status is None or processing_status.decode('utf-8') != 'in progess':
         print("Inicio de procesamiento de datos")
@@ -439,6 +447,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
         RedisDockers.set('processing_status', 'not_started')
         
     end_time = time.time()
+    print("Finalizando proceso de procesamiento de datos de Actual")
     print(f"Streaming completed in {end_time - start_time} seconds")
 
     #return StreamingResponse(generate(), media_type='application/json')
@@ -448,8 +457,8 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
 
 
 @router.get("/GetDataActual")
-async def lalora():
-    print("Obteniendo datos actual de redis")
+async def Get_Data_Actual():
+    print("Obteniendo datos actual desde redis")
 
     pickled_df = RedisDockers.get('df_combined')
     df_combined = pickle.loads(pickled_df)
