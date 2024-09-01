@@ -6,7 +6,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:8000", 
-    "https://marcobremantenimientobpy-production.up.railway.app/",
+    "https://marcobremantenimientobpy-production.up.railway.app",
 ]
 
 app.add_middleware(
