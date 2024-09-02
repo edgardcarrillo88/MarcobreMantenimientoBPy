@@ -27,6 +27,29 @@ async def id_to_string_process(cursor, array):
         array.append(item)
     return array
 
+def function_return_Streaming(df, result_list):
+    def generate():
+        buffer = io.StringIO()
+        buffer.write('[')
+        first = True
+        
+        chunk_size = 1000
+        for i in range(0, len(df), chunk_size):
+            chunk = df.iloc[i:i + chunk_size]
+            if not first:
+                buffer.write(',')
+            first = False
+            chunk_json = chunk.to_json(orient='records')
+            buffer.write(chunk_json[1:-1])
+            yield buffer.getvalue()
+            buffer.truncate(0)
+            buffer.seek(0)
+        buffer.write(']')
+        yield buffer.getvalue()
+    
+    result_list.append(generate())
+
+
 REDISHOST = os.getenv("REDISHOST")
 REDISPORT = os.getenv("REDISPORT")
 REDISUSER = os.getenv("REDISUSER")
@@ -36,480 +59,111 @@ REDISPASSWORD = os.getenv("REDISPASSWORD")
 #Conectandose al servidor de redis, que entiendo esta en mi conteder de dockers
 RedisDockers = redis.Redis(host=REDISHOST, port=REDISPORT,username=REDISUSER,password=REDISPASSWORD, db=0)
 
-#Proceso de Finanzas
-@router.post("/UpdateDataFinanzasToRedis")
-async def Update_Data_Finanzas_To_Redis():
+
+#Proceso de Carga a Redis
+@router.post("/UpdateDataSAPToRedis", tags=["Indicadores"])
+async def Update_Data_SAPIndicadores_To_Redis():
     
-    All_Data_CeCo = []
-    All_Data_ClaseCostos = []
-    All_Data_Partidas = []  
+    All_Data_IW29 = []
+    All_Data_IW37nBase = []
+    All_Data_IW37nReporte = []  
+    All_Data_IW39 = []  
     
-    Process_Status_Data_Finanzas = RedisDockers.get('Process_Status_Data_Finanzas')
-    print(Process_Status_Data_Finanzas)
+    Process_Status_Data_SAP_Indicadores = RedisDockers.get('Process_Status_Data_SAP_Indicadores')
+    print(Process_Status_Data_SAP_Indicadores)
     
-    if Process_Status_Data_Finanzas is None or Process_Status_Data_Finanzas.decode('utf-8') != 'in progess':
+    if Process_Status_Data_SAP_Indicadores is None or Process_Status_Data_SAP_Indicadores.decode('utf-8') != 'in progess':
         
-        RedisDockers.set('Process_Status_Data_Finanzas','in progess')
-        print("Iniciando Carga de datos de finanzas a Memoria Cache")
+        RedisDockers.set('Process_Status_Data_SAP_Indicadores','in progess')
+        print("Iniciando Carga de datos de SAP a Redis")
         
-        CursorCeCo = db.cecos.find()
-        cursorClaseCosto = db.clasecostos.find()
-        CursorPartidas = db.partidas.find()
+        print("Obteniendo los datos de MongoDB")
+        CursorIW29 = db.iw29.find()
+        cursorIW37nBase = db.iw37n.find()
+        CursorIW37nReporte = db.iw37nreport.find()
+        CursorIW39 = db.iw39report.find()
         
-        await id_to_string_process(CursorCeCo,All_Data_CeCo)
-        await id_to_string_process(cursorClaseCosto,All_Data_ClaseCostos)
-        await id_to_string_process(CursorPartidas,All_Data_Partidas)
+        print("Procesando los datos de MongoDB")
+        await id_to_string_process(CursorIW29,All_Data_IW29)
+        await id_to_string_process(cursorIW37nBase,All_Data_IW37nBase)
+        await id_to_string_process(CursorIW37nReporte,All_Data_IW37nReporte)
+        await id_to_string_process(CursorIW39,All_Data_IW39)
         
-        df_CeCo = pd.DataFrame(All_Data_CeCo)
-        df_ClaseCostos = pd.DataFrame(All_Data_ClaseCostos)
-        df_Partidas = pd.DataFrame(All_Data_Partidas)
+        print("Creando los data frame")
+        df_IW29 = pd.DataFrame(All_Data_IW29)
+        df_IW37nBase = pd.DataFrame(All_Data_IW37nBase)
+        df_IW37nReporte = pd.DataFrame(All_Data_IW37nReporte)
+        df_IW39 = pd.DataFrame(All_Data_IW39)        
         
-        print(len(df_ClaseCostos))
-        
-        df_CeCo = df_CeCo.drop_duplicates(subset=['CeCo'])
-        df_ClaseCostos = df_ClaseCostos.drop_duplicates(subset=['ClaseCosto'])
-        df_Partidas = df_Partidas.drop_duplicates(subset=['Partida'])
-        
-        
-        RedisDockers.set('df_CeCo',pickle.dumps(df_CeCo))
-        RedisDockers.set('df_ClaseCostos',pickle.dumps(df_ClaseCostos))
-        RedisDockers.set('df_Partidas',pickle.dumps(df_Partidas))
-        RedisDockers.set('Process_Status_Data_Finanzas','completed')
+        print("Creando las tablas en Redis")
+        RedisDockers.set('df_IW29',pickle.dumps(df_IW29))
+        RedisDockers.set('df_IW37nBase',pickle.dumps(df_IW37nBase))
+        RedisDockers.set('df_IW37nReporte',pickle.dumps(df_IW37nReporte))
+        RedisDockers.set('df_IW39',pickle.dumps(df_IW39))
+        RedisDockers.set('Process_Status_Data_SAP_Indicadores','completed')
+        print("Finalizando el proceso de carga de Data SAP Indicadores en Redis")
         
         return ({
             "Message": "Oki Doki"
             })
 
 
-@router.get('/GetDataFinanzasFromRedis')
-async def Get_Data_Finanzas_From_Redis():
+@router.get('/GetDataSAPIw39FromRedis', tags=["Indicadores"])
+def Get_Data_IW39_From_Redis():
     
-    print("Obteniendo datos de finanzas de redis")
-    pickled_CeCo = RedisDockers.get('df_CeCo')
-    pickled_ClaseCostos =RedisDockers.get('df_ClaseCostos')
-    pickled_Partidas =RedisDockers.get('df_Partidas')
-    
-    df_CeCo = pickle.loads(pickled_CeCo)
-    df_ClaseCostos = pickle.loads(pickled_ClaseCostos)
-    df_Partidas = pickle.loads(pickled_Partidas)
-    
-    df_CeCo = df_CeCo.where(pd.notnull(df_CeCo), '')
-    df_ClaseCostos = df_ClaseCostos.where(pd.notnull(df_ClaseCostos), '')
-    df_Partidas = df_Partidas.where(pd.notnull(df_Partidas), '')
-    
-    data_CeCo = df_CeCo.to_dict(orient='records')
-    data_ClaseCostos = df_ClaseCostos.to_dict(orient='records')
-    data_Partidas = df_Partidas.to_dict(orient='records')
-    
-    print("Finalizando el proceso de Obteniendo datos de finanzas desde redis")
-    
-    return {
-        "data_CeCo": data_CeCo,
-        "data_ClaseCostos": data_ClaseCostos,
-        "data_Partidas": data_Partidas,
-    }
-
-
-#Proceso de Provisiones
-@router.post("/UpdateDataProvisionesToRedis")
-async def Update_Data():
-    All_Data_Provisiones = []
-    
-    print("Iniciando proceso de carga de datos de provisiones en Redis")
-    Process_Status_Data_Provisiones = RedisDockers.get('Process_Status_Data_Provisiones')
-    if Process_Status_Data_Provisiones is None or Process_Status_Data_Provisiones != 'in progess':
-        
-        RedisDockers.set('Process_Status_Data_Provisiones','in progess')
-        CursorProvisiones = db.provisiones.find()
-        
-        await id_to_string_process(CursorProvisiones,All_Data_Provisiones)
-        df_Provisiones = pd.DataFrame(All_Data_Provisiones)
-        
-        print(df_Provisiones.columns)
-        
-        RedisDockers.set('df_Provisiones',pickle.dumps(df_Provisiones))
-        RedisDockers.set('Process_Status_Data_Provisiones','completed')
-        
-        return{
-            "Message": "Oki Doki"
-        }
-
-
-@router.get("/GetDataProvisionesFromRedis")
-async def lalora():
-
-    print("Ejecutando get data de provisiones redis")
-    pickled_df = RedisDockers.get('df_Provisiones')
-    df_combined = pickle.loads(pickled_df)
-    # print(df_combined.columns)
-
+    print("Obteniendo datos de SAP IW39 desde redis")
+    df_result = []
+    pickled_IW39 =RedisDockers.get('df_IW39')
+    df_IW39 = pickle.loads(pickled_IW39)
+    function_return_Streaming(df_IW39,df_result)
     def generate():
-        buffer = io.StringIO()
-        yield '['
-        first = True
-
-        # Configura el tamaño del chunk
-        chunk_size = 1000
-        for i in range(0, len(df_combined), chunk_size):
-            chunk = df_combined.iloc[i:i+chunk_size]
-            if not first:
-                buffer.write(',')
-            first = False
-            # Convierte el chunk a JSON
-            buffer.write(chunk.to_json(orient='records')[1:-1])
-            yield buffer.getvalue()
-            buffer.truncate(0)
-            buffer.seek(0)
-        yield ']'
-
-    # Retorna la respuesta en streaming
-    print("Finalizado el proceso de obtencion de provisiones desde redis")
-    return StreamingResponse(generate(), media_type='application/json')    
+        for chunk in df_result:
+            yield from chunk
+    print("Finalizando el proceso de obtención de IW39 desde Redis")
+    return StreamingResponse(generate(), media_type='application/json')
 
 
-#Proceso de Budget
-@router.post("/UpdateDataBudgetToRedis")
-async def Update_Data_Budget_Redis():
+@router.get('/GetDataSAPIw37nBaseFromRedis', tags=["Indicadores"])
+def Get_Data_IW37nBase_From_Redis():
     
-    print("Iniciando proceso de carga de actual en Redis")
-    All_Data_Budget = []
-    
-    Process_Status_Data_Budget = RedisDockers.get('Process_Status_Data_Budget')
-    if Process_Status_Data_Budget is None or Process_Status_Data_Budget != 'in progess':
-        
-        print("Obteniendo datos actual de redis")
-
-        pickled_df = RedisDockers.get('df_combined')
-        df_Actual = pickle.loads(pickled_df)
-        print(df_Actual.columns)
-        
-        RedisDockers.set('Process_Status_Data_Budget','in progess')
-        print("Obteniendo datos budget de MongoDB")
-        CursorBudget = db.budgetplanta.find()
-        
-        print("Procesando la información del Budget")
-        await id_to_string_process(CursorBudget,All_Data_Budget)
-        df_Budget_Mongo = pd.DataFrame(All_Data_Budget)
-        
-        columnas_budget = [
-        "Gerencia", "Planta", "Area", "SubArea", "Categoria", 
-        "CeCo", "DescripcionCeCo", "ClaseCosto", "DescripcionClaseCosto", "Responsable", 
-        "Especialidad", "Partida", "DescripcionPartida", 
-        "Mes","Monto","PptoForecast","TxtPedido","CN","TAG","Justificacion","Proveedor","OC","Posicion","Fecha",
-        ]
-        
-        df_Budget = df_Budget_Mongo[columnas_budget]
-        df_Budget['Mes'] = pd.to_datetime(df_Budget['Mes'].apply(lambda x: date(2024, x, 1)))
-        df_Budget['Mes'] = pd.to_datetime(df_Budget['Mes'], unit='ms').dt.strftime('%Y-%m-%dT%H:%M:%S')
-        print(df_Budget.columns)
-        
-        df_combined = pd.concat([df_Actual, df_Budget], ignore_index=True)
-        df_combined['CN'] = df_combined['CN'].fillna(0)
-        
-        RedisDockers.set('df_Budget',pickle.dumps(df_combined))
-        RedisDockers.set('Process_Status_Data_Budget','completed')
-        
-        return{
-            "Message": "Oki Doki"
-        }
-
-
-@router.get("/GetDataBudgetFromRedis")
-async def lalora():
-
-    print("Ejecutando get data de Budget from redis")
-    pickled_df = RedisDockers.get('df_Budget')
-    df_Budget = pickle.loads(pickled_df)
-    # print(df_combined.columns)
-
+    print("Obteniendo datos de SAP IW37nBase desde redis")
+    df_result = []
+    pickled_IW37nBase =RedisDockers.get('df_IW37nBase')
+    df_IW37Base = pickle.loads(pickled_IW37nBase)
+    function_return_Streaming(df_IW37Base,df_result)
     def generate():
-        buffer = io.StringIO()
-        yield '['
-        first = True
-
-        # Configura el tamaño del chunk
-        chunk_size = 1000
-        for i in range(0, len(df_Budget), chunk_size):
-            chunk = df_Budget.iloc[i:i+chunk_size]
-            if not first:
-                buffer.write(',')
-            first = False
-            # Convierte el chunk a JSON
-            buffer.write(chunk.to_json(orient='records')[1:-1])
-            yield buffer.getvalue()
-            buffer.truncate(0)
-            buffer.seek(0)
-        yield ']'
-
-    # Retorna la respuesta en streaming
-    print("Finalizado el proceso de obtencion de Budget desde redis")
-    return StreamingResponse(generate(), media_type='application/json')    
+        for chunk in df_result:
+            yield from chunk
+    print("Finalizando el proceso de obtención de IW37nBase desde Redis")
+    return StreamingResponse(generate(), media_type='application/json')
 
 
-#Proceso de Actual
-@router.post("/UpdateDataActualToRedis/{CurrentMonth}")
-async def Update_Data(CurrentMonth: int):
+@router.get('/GetDataSAPIw37nReporteFromRedis', tags=["Indicadores"])
+def Get_Data_IW37nReporte_From_Redis():
     
-    All_Data_Actual = [] 
-    
-    Process_Status_Data_Actual = RedisDockers.get('Process_Status_Data_Actual')
-    if Process_Status_Data_Actual is None or Process_Status_Data_Actual != 'in progess':
-        
-        print("Iniciando Proceso")
-        RedisDockers.set('Process_Status_Data_Actual','in progress')
-        
-        print("Obteniendo Datos de MongoDB")
-        CursorActual = db.actualplanta.find({
-            'Mes': {
-                '$ne':0,
-                '$lt':CurrentMonth
-                    }
-        })
-        
-        await id_to_string_process(CursorActual,All_Data_Actual)
-        df_Actual = pd.DataFrame(All_Data_Actual)
-        df_Actual['CategoriaActual'] = df_Actual['CategoriaActual'].fillna("Real")
-        
-        print("Guardando datos en Redis")
-        RedisDockers.set('df_Actual',pickle.dumps(df_Actual))
-        RedisDockers.set('Process_Status_Data_Actual','completed')
-        print("Finalizado")
-        
-        return{
-            "Message": "Oki Doki"
-        }    
-
-
-@router.get("/PyProcessDataActual/{ProvMonth}")
-async def Get_Data_Actual_Planta(ProvMonth: int):
-    
-    pd.set_option('future.no_silent_downcasting', True)
-    
-    start_time = time.time()
-    
-    processing_status = RedisDockers.get('processing_status')
-    if processing_status is None or processing_status.decode('utf-8') != 'in progess':
-        print("Inicio de procesamiento de datos")
-    
-        #Variables
-        
-        print("Definiendo variables")
-        all_items_Actual = []
-        
-        #Proceso Datos de Finanzas
-        
-        print("Obteniendo datos de finanzas")
-        Undo_pickled_df_CeCo = RedisDockers.get('df_CeCo')
-        Undo_pickled_df_ClaseCostos = RedisDockers.get('df_ClaseCostos')
-        Undo_pickled_df_Partidas = RedisDockers.get('df_Partidas')
-        
-        dfCeCo = pickle.loads(Undo_pickled_df_CeCo)
-        dfClaseCosto = pickle.loads(Undo_pickled_df_ClaseCostos)
-        dfPartida = pickle.loads(Undo_pickled_df_Partidas)     
-        
-        #Proceso de Actual
-        
-        print("Consultando datos de Actual planta en MongDB")
-        cursorActual = db.actualplanta.find({"Mes": {"$ne": 0, "$gte":ProvMonth}})
-        
-        print("Obteniendo datos actual de redis")
-        Undo_Pickled_Actual = RedisDockers.get('df_Actual')
-        dfActual_redis = pickle.loads(Undo_Pickled_Actual)
-        
-        print("Procesando datos Actual")
-        
-        await id_to_string_process(cursorActual,all_items_Actual)
-        dfActual = pd.DataFrame(all_items_Actual)
-        dfActual['CategoriaActual'] = dfActual['CategoriaActual'].fillna("Real")
-        dfActual = pd.concat([dfActual, dfActual_redis], ignore_index=True)
-        
-        
-        dfActual['Mes'] = pd.to_datetime(dfActual['Mes'].apply(lambda x: date(2024, x, 1)))
-        dfActual['_id'] = dfActual['_id'].astype(str)
-        
-        dfActual = dfActual.where(pd.notnull(dfActual), None)
-        
-        #Proceso de Provisiones
-        
-        print("Obteniendo datos provision de redis")
-        Undo_Pickled_Provision = RedisDockers.get('df_Provisiones')
-        dfProvision_redis = pickle.loads(Undo_Pickled_Provision)
-        
-        print(f"provision 1: {dfProvision_redis.shape[0]}")
-        
-        dfProvision_redis = dfProvision_redis[dfProvision_redis['Status'] == 'Aprobado']
-        dfProvision_redis = dfProvision_redis[dfProvision_redis['TipoProvision'] != 'ReProvisión']
-        dfProvision_redis = dfProvision_redis[dfProvision_redis['CeCo'].astype(str).str.startswith('22')]
-        
-                
-        dfProvision_redis['FechaEnvioProvision']  = pd.to_datetime(dfProvision_redis['FechaEnvioProvision'].astype(int), origin='1899-12-30', unit='D')
-        dfProvision_redis['FechaEnvioProvision']  = dfProvision_redis['FechaEnvioProvision'].dt.date
-        dfProvision_redis = dfProvision_redis[dfProvision_redis['FechaEnvioProvision'] > date(2024,ProvMonth,1)]
-        
-        columnas_provisiones = [
-        "ClaseCosto", "DescClaseCosto", "CeCo", "DescCeCo", "NombreProveedor", 
-        "FechaEnvioProvision", "OC", "Posicion", "Monto", "Moneda", 
-        "Partida", "DescripcionServicio", "Planta", 
-        "TipoProvision"
-        ]
-        
-        #Manteniendo solo las columnas que quiero
-        dfProvision = dfProvision_redis[columnas_provisiones]
-        print(f"provision 2: {dfProvision.shape[0]}")   
-        
-        print(f"provision 3 (Condicional): {dfProvision_redis.shape[0]}")
-        
-        if dfProvision_redis.shape[0]>0:                 
-            print("Procesando datos provisiones")  
-            
-            
-            dfProvision = dfProvision.where(pd.notnull(dfProvision), None) 
-            dfProvision.loc[dfProvision['Moneda'] == 'PEN', 'Monto'] = dfProvision['Monto'] / 3.7
-            
-            dfProvision.drop(columns=['Moneda'], inplace=True)
-            dfProvision.drop(columns=['DescClaseCosto'], inplace=True)
-            dfProvision.drop(columns=['DescCeCo'], inplace=True)
-            
-            dfProvision['FechaEnvioProvision'] = pd.to_datetime(dfProvision['FechaEnvioProvision'].astype(int), origin='1899-12-30', unit='D')
-            dfProvision['FechaEnvioProvision'] = dfProvision['FechaEnvioProvision'].dt.to_period('M').dt.to_timestamp()
-            
-            dfProvision = dfProvision.merge(dfCeCo[['CeCo','DescripcionCeCo','Area','SubArea']],on='CeCo',how='left')
-            dfProvision = dfProvision.merge(dfClaseCosto[['ClaseCosto','DescripcionClaseCosto']],on='ClaseCosto',how='left')
-            dfProvision = dfProvision.merge(dfPartida[['Partida','DescripcionPartida']],on='Partida',how='left')
-            
-            dfProvision['Categoria'] = 'Servicios' 
-            dfProvision['CategoriaActual'] = 'Provisión' 
-            dfProvision['PptoForecast'] = 'Actual' 
-            dfProvision['CN'] = '0'
-            
-            dfProvision.rename(columns={'FechaEnvioProvision': 'Mes'}, inplace=True)
-            dfProvision.rename(columns={'DescClaseCosto': 'DescripcionClaseCosto'}, inplace=True)
-            dfProvision.rename(columns={'NombreProveedor': 'Proveedor'}, inplace=True)
-            dfProvision.rename(columns={'DescripcionServicio': 'TxtPedido'}, inplace=True)
-            
-            print(dfProvision.columns)
-            print(f"provision 4: {dfProvision.shape[0]}")
-                        
-            
-        dfProvision = dfProvision.where(pd.notnull(dfProvision), '')
-    
-        df_combined = pd.concat([dfActual, dfProvision], ignore_index=True)
-        df_combined['Monto'] = df_combined['Monto'].fillna(0)
-        df_combined = df_combined.where(pd.notnull(df_combined), '')
-        df_combined['Area'] = df_combined['Area'].apply(lambda x: x.strip() if isinstance(x, str) else x)
-        df_combined['SubArea'] = df_combined['SubArea'].apply(lambda x: x.strip() if isinstance(x, str) else x)
-        df_combined['DescripcionCeCo'] = df_combined['DescripcionCeCo'].apply(lambda x: x.strip() if isinstance(x, str) else x)
-        df_combined['DescripcionClaseCosto'] = df_combined['DescripcionClaseCosto'].apply(lambda x: x.strip() if isinstance(x, str) else x)
-        
-        df_combined['Mes'] = pd.to_datetime(df_combined['Mes'], unit='ms').dt.strftime('%Y-%m-%dT%H:%M:%S')
-
-        
-        nan_counts = df_combined.isna().sum()
-        #print(nan_counts)
-        
-        
-        #Almacenando en Redis
-        RedisDockers.set('df_combined',pickle.dumps(df_combined))        
-        
-    
-    #Enviando Datos
-    print(f"Cantidad de filas: {df_combined.shape[0]}")
-    print("enviando los datos via streaming")
-    
-    df_combined = pickle.loads(RedisDockers.get('df_combined'))
-    
+    print("Obteniendo datos de SAP IW37nReporte desde redis")
+    df_result = []
+    pickled_IW37nReporte =RedisDockers.get('df_IW37nReporte')
+    df_IW37Reporte = pickle.loads(pickled_IW37nReporte)
+    function_return_Streaming(df_IW37Reporte,df_result)
     def generate():
-        buffer = io.StringIO()
-        yield '['
-        first = True
-        start_time = time.time()
-        chunk_size = 1000
-        for i in range(0, len(df_combined), chunk_size):
-            chunk = df_combined.iloc[i:i+chunk_size]
-            if not first:
-                buffer.write(',')
-            first = False
-            buffer.write(chunk.to_json(orient='records')[1:-1])
-            yield buffer.getvalue()
-            buffer.truncate(0)
-            buffer.seek(0)
-        yield ']'
-        end_time = time.time()
-        print(f"Streaming completed in {end_time - start_time} seconds")
-        RedisDockers.set('processing_status', 'not_started')
-        
-    end_time = time.time()
-    print(f"Streaming completed in {end_time - start_time} seconds")
-
-    #return StreamingResponse(generate(), media_type='application/json')
-    return ({
-            "Message": "Oki Doki"
-            })
+        for chunk in df_result:
+            yield from chunk
+    print("Finalizando el proceso de obtención de IW37nReporte desde Redis")
+    return StreamingResponse(generate(), media_type='application/json')
 
 
-@router.get("/GetDataActual")
-async def lalora():
-    print("Obteniendo datos actual de redis")
-
-    pickled_df = RedisDockers.get('df_combined')
-    df_combined = pickle.loads(pickled_df)
-
+@router.get('/GetDataSAPIw29FromRedis', tags=["Indicadores"])
+def Get_Data_IW29_From_Redis():
+    
+    print("Obteniendo datos de SAP IW29 desde redis")
+    df_result = []
+    pickled_IW29 =RedisDockers.get('df_IW29')
+    df_IW29 = pickle.loads(pickled_IW29)
+    function_return_Streaming(df_IW29,df_result)
     def generate():
-        buffer = io.StringIO()
-        yield '['
-        first = True
+        for chunk in df_result:
+            yield from chunk
+    print("Finalizando el proceso de obtención de IW29 desde Redis")
+    return StreamingResponse(generate(), media_type='application/json')
 
-        # Configura el tamaño del chunk
-        chunk_size = 1000
-        for i in range(0, len(df_combined), chunk_size):
-            chunk = df_combined.iloc[i:i+chunk_size]
-            if not first:
-                buffer.write(',')
-            first = False
-            # Convierte el chunk a JSON
-            buffer.write(chunk.to_json(orient='records')[1:-1])
-            yield buffer.getvalue()
-            buffer.truncate(0)
-            buffer.seek(0)
-        yield ']'
-
-    # Retorna la respuesta en streaming
-    print("Finalizando el proceso de obtención de Actual desde Redis")
-    return StreamingResponse(generate(), media_type='application/json')    
-
-
-
-
-# @router.get("/GetItems", response_model=List[ActualPlanta])
-# async def read_items():
-#     cursor = db.actualplanta.find({"Mes": {"$ne": 0}})
-#     all_items = []
-    
-    
-#     async for item in cursor:
-#         item['_id'] = str(item['_id'])
-#         all_items.append(item)
-#         #print(item)    
-#     df = pd.DataFrame(all_items)
-#     summary = df.groupby('Planta')['Monto'].sum().reset_index()
-#     transformed_data = summary.to_dict(orient='records')
-#     print("------")
-#     print("Esta es la data trasnformada", transformed_data)
-#     print("------")
-#     return transformed_data
-
-
-# @router.get("/GetAllDataProvisiones", response_model=List[Provisiones])
-# async def read_items():
-#     cursor = db.provisiones.find()
-#     all_items = []
-    
-    
-#     async for item in cursor:
-#         item['_id'] = str(item['_id'])
-#         all_items.append(item)
-        
-#     df = pd.DataFrame(all_items)
-#     df = df.where(pd.notnull(df), None)  
-#     transformed_data = df.to_dict(orient='records')
-#     return transformed_data

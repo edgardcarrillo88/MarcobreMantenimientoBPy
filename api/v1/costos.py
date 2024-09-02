@@ -37,7 +37,7 @@ REDISPASSWORD = os.getenv("REDISPASSWORD")
 RedisDockers = redis.Redis(host=REDISHOST, port=REDISPORT,username=REDISUSER,password=REDISPASSWORD, db=0)
 
 #Proceso de Finanzas
-@router.post("/UpdateDataFinanzasToRedis")
+@router.post("/UpdateDataFinanzasToRedis", tags=["Costos"])
 async def Update_Data_Finanzas_To_Redis():
     
     All_Data_CeCo = []
@@ -84,7 +84,7 @@ async def Update_Data_Finanzas_To_Redis():
             })
 
 
-@router.get('/GetDataFinanzasFromRedis')
+@router.get('/GetDataFinanzasFromRedis', tags=["Costos"])
 async def Get_Data_Finanzas_From_Redis():
     
     print("Obteniendo datos de finanzas de redis")
@@ -114,7 +114,7 @@ async def Get_Data_Finanzas_From_Redis():
 
 
 #Proceso de Provisiones
-@router.post("/UpdateDataProvisionesToRedis")
+@router.post("/UpdateDataProvisionesToRedis", tags=["Costos"])
 async def Update_Data_Provisiones_To_Redis():
     All_Data_Provisiones = []
     
@@ -131,8 +131,8 @@ async def Update_Data_Provisiones_To_Redis():
         print(df_Provisiones.columns)
         
         RedisDockers.set('df_Provisiones',pickle.dumps(df_Provisiones))
-        RedisDockers.set('Process_Status_Data_Provisiones','completed')
         print("Finalizando el proceso de carga de datos de provisiones en Redis")
+        RedisDockers.set('Process_Status_Data_Provisiones','completed')
         
         
         return{
@@ -140,7 +140,7 @@ async def Update_Data_Provisiones_To_Redis():
         }
 
 
-@router.get("/GetDataProvisionesFromRedis")
+@router.get("/GetDataProvisionesFromRedis", tags=["Costos"])
 async def Get_Data_Provisiones_From_Redis():
 
     print("Ejecutando get data de provisiones redis")
@@ -173,7 +173,7 @@ async def Get_Data_Provisiones_From_Redis():
 
 
 #Proceso de Budget
-@router.post("/UpdateDataBudgetToRedis")
+@router.post("/UpdateDataBudgetToRedis", tags=["Costos"])
 async def Update_Data_Budget_Redis():
     
     print("Iniciando proceso de carga de actual en Redis")
@@ -206,21 +206,21 @@ async def Update_Data_Budget_Redis():
         df_Budget = df_Budget_Mongo[columnas_budget]
         df_Budget['Mes'] = pd.to_datetime(df_Budget['Mes'].apply(lambda x: date(2024, x, 1)))
         df_Budget['Mes'] = pd.to_datetime(df_Budget['Mes'], unit='ms').dt.strftime('%Y-%m-%dT%H:%M:%S')
-        print(df_Budget.columns)
+        #print(df_Budget.columns)
         
         df_combined = pd.concat([df_Actual, df_Budget], ignore_index=True)
         df_combined['CN'] = df_combined['CN'].fillna(0)
         
         RedisDockers.set('df_Budget',pickle.dumps(df_combined))
         RedisDockers.set('Process_Status_Data_Budget','completed')
-        print("Finalizando proceso de obtención de datos actual desde redis")
+        print("Finalizando proceso de carga de datos actual desde redis")
         
         return{
             "Message": "Oki Doki"
         }
 
 
-@router.get("/GetDataBudgetFromRedis")
+@router.get("/GetDataBudgetFromRedis", tags=["Costos"])
 async def Get_Data_Budget_From_Redis():
 
     print("Ejecutando get data de Budget from redis")
@@ -253,7 +253,7 @@ async def Get_Data_Budget_From_Redis():
 
 
 #Proceso de Actual
-@router.post("/UpdateDataActualToRedis/{CurrentMonth}")
+@router.post("/UpdateDataActualToRedis/{CurrentMonth}", tags=["Costos"])
 async def Update_Data_Actual_To_Redis(CurrentMonth: int):
     
     All_Data_Actual = [] 
@@ -287,7 +287,7 @@ async def Update_Data_Actual_To_Redis(CurrentMonth: int):
         }    
 
 
-@router.get("/PyProcessDataActual/{ProvMonth}")
+@router.get("/PyProcessDataActual/{ProvMonth}", tags=["Costos"])
 async def Get_Data_Actual_Planta(ProvMonth: int):
     
     pd.set_option('future.no_silent_downcasting', True)
@@ -456,7 +456,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
             })
 
 
-@router.get("/GetDataActual")
+@router.get("/GetDataActual", tags=["Costos"])
 async def Get_Data_Actual():
     print("Obteniendo datos actual desde redis")
 
