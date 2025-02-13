@@ -190,11 +190,15 @@ async def Update_Data_Budget_Redis():
         
         RedisDockers.set('Process_Status_Data_Budget','in progess')
         print("Obteniendo datos budget de MongoDB")
-        CursorBudget = db.budgetplanta.find()
+        CursorBudget = db.budgetplanta.find({
+            "Mes": {"$ne": 0}
+        })
+        
         
         print("Procesando la información del Budget")
         await id_to_string_process(CursorBudget,All_Data_Budget)
         df_Budget_Mongo = pd.DataFrame(All_Data_Budget)
+        print(df_Budget_Mongo.columns)
         
         columnas_budget = [
         "Gerencia", "Planta", "Area", "SubArea", "Categoria", 
@@ -204,7 +208,7 @@ async def Update_Data_Budget_Redis():
         ]
         
         df_Budget = df_Budget_Mongo[columnas_budget]
-        df_Budget['Mes'] = pd.to_datetime(df_Budget['Mes'].apply(lambda x: date(2024, x, 1)))
+        df_Budget['Mes'] = pd.to_datetime(df_Budget['Mes'].apply(lambda x: date(2025, x, 1)))
         df_Budget['Mes'] = pd.to_datetime(df_Budget['Mes'], unit='ms').dt.strftime('%Y-%m-%dT%H:%M:%S')
         #print(df_Budget.columns)
         
@@ -272,9 +276,44 @@ async def Update_Data_Actual_To_Redis(CurrentMonth: int):
                     }
         })
         
-        await id_to_string_process(CursorActual,All_Data_Actual)
-        df_Actual = pd.DataFrame(All_Data_Actual)
-        df_Actual['CategoriaActual'] = df_Actual['CategoriaActual'].fillna("Real")
+        print("CAntidad: ", await db.actualplanta.count_documents({'Mes': {'$ne': 0, '$lt': CurrentMonth}}))
+        if await db.actualplanta.count_documents({'Mes': {'$ne': 0, '$lt': CurrentMonth}}) == 0:
+            print("Ejecutando if")
+            data = {
+                    "Gerencia": ["Gerencia Mantenimiento"],
+                    "Planta": ["Gerencia Mantenimiento"],
+                    "Area": ["Gerencia Mantenimiento"],
+                    "SubArea": ["Superintendencia de mantenimiento de planta"],
+                    "Categoria": ["Consumible"],
+                    "CeCo": ["2290900"],
+                    "DescripcionCeCo": ["Mantenimiento planta"],
+                    "ClaseCosto": ["6133091000"],
+                    "DescripcionClaseCosto": ["Herramientas manuales"],
+                    "Responsable": ["Freind"],
+                    "Especialidad": ["-"],
+                    "Partida": ["-"],
+                    "DescripcionPartida": ["-"],
+                    "Mes": [1],
+                    "Monto": [0],
+                    "PptoForecast": ["Actual"],
+                    "TxtPedido": ["-"],
+                    "CN": [0],
+                    "TAG": ["-"],
+                    "Justificacion": ["-"],
+                    "Proveedor": ["-"],
+                    "OC": ["-"],
+                    "Posicion": ["-"],
+                    "Fecha": ["45658"],
+                    "CategoriaActual": ["Real"]
+                }
+
+            df_Actual = pd.DataFrame(data)
+        else:
+            print("ejecutando else")
+            await id_to_string_process(CursorActual,All_Data_Actual)
+            df_Actual = pd.DataFrame(All_Data_Actual)
+            print("Suma actual: ",df_Actual['Monto'].sum())
+            df_Actual['CategoriaActual'] = df_Actual['CategoriaActual'].fillna("Real")
         
         print("Guardando datos en Redis")
         RedisDockers.set('df_Actual',pickle.dumps(df_Actual))
@@ -287,8 +326,8 @@ async def Update_Data_Actual_To_Redis(CurrentMonth: int):
         }    
 
 
-@router.get("/PyProcessDataActual/{ProvMonth}", tags=["Costos"])
-async def Get_Data_Actual_Planta(ProvMonth: int):
+@router.post("/PyProcessDataActual/{ProvMonth}", tags=["Costos"])
+async def Process_Data_Actual_Planta(ProvMonth: int):
     
     pd.set_option('future.no_silent_downcasting', True)
     
@@ -296,6 +335,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
     
     print("Iniciando proceso de procesamiento de datos de Actual")
     processing_status = RedisDockers.get('processing_status')
+    print(processing_status)
     if processing_status is None or processing_status.decode('utf-8') != 'in progess':
         print("Inicio de procesamiento de datos")
     
@@ -318,7 +358,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
         #Proceso de Actual
         
         print("Consultando datos de Actual planta en MongDB")
-        cursorActual = db.actualplanta.find({"Mes": {"$ne": 0, "$gte":ProvMonth}})
+        cursorActual = db.actualplanta.find({"Mes": {"$ne": 0, "$gte":ProvMonth, "$lt":13}})
         
         print("Obteniendo datos actual de redis")
         Undo_Pickled_Actual = RedisDockers.get('df_Actual')
@@ -332,7 +372,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
         dfActual = pd.concat([dfActual, dfActual_redis], ignore_index=True)
         
         
-        dfActual['Mes'] = pd.to_datetime(dfActual['Mes'].apply(lambda x: date(2024, x, 1)))
+        dfActual['Mes'] = pd.to_datetime(dfActual['Mes'].apply(lambda x: date(2025, x, 1)))
         dfActual['_id'] = dfActual['_id'].astype(str)
         
         dfActual = dfActual.where(pd.notnull(dfActual), None)
@@ -352,7 +392,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
                 
         dfProvision_redis['FechaEnvioProvision']  = pd.to_datetime(dfProvision_redis['FechaEnvioProvision'].astype(int), origin='1899-12-30', unit='D')
         dfProvision_redis['FechaEnvioProvision']  = dfProvision_redis['FechaEnvioProvision'].dt.date
-        dfProvision_redis = dfProvision_redis[dfProvision_redis['FechaEnvioProvision'] > date(2024,ProvMonth,1)]
+        dfProvision_redis = dfProvision_redis[dfProvision_redis['FechaEnvioProvision'] >= date(2025,ProvMonth,1)]
         
         columnas_provisiones = [
         "ClaseCosto", "DescClaseCosto", "CeCo", "DescCeCo", "NombreProveedor", 
@@ -363,6 +403,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
         
         #Manteniendo solo las columnas que quiero
         dfProvision = dfProvision_redis[columnas_provisiones]
+     
         print(f"provision 2: {dfProvision.shape[0]}")   
         
         print(f"provision 3 (Condicional): {dfProvision_redis.shape[0]}")
@@ -378,8 +419,8 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
             dfProvision.drop(columns=['DescClaseCosto'], inplace=True)
             dfProvision.drop(columns=['DescCeCo'], inplace=True)
             
-            dfProvision['FechaEnvioProvision'] = pd.to_datetime(dfProvision['FechaEnvioProvision'].astype(int), origin='1899-12-30', unit='D')
-            dfProvision['FechaEnvioProvision'] = dfProvision['FechaEnvioProvision'].dt.to_period('M').dt.to_timestamp()
+            #dfProvision['FechaEnvioProvision'] = pd.to_datetime(dfProvision['FechaEnvioProvision'].astype(int), origin='1899-12-30', unit='D')
+            #dfProvision['FechaEnvioProvision'] = dfProvision['FechaEnvioProvision'].dt.to_period('M').dt.to_timestamp()
             
             dfProvision = dfProvision.merge(dfCeCo[['CeCo','DescripcionCeCo','Area','SubArea']],on='CeCo',how='left')
             dfProvision = dfProvision.merge(dfClaseCosto[['ClaseCosto','DescripcionClaseCosto']],on='ClaseCosto',how='left')
@@ -397,6 +438,7 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
             
             print(dfProvision.columns)
             print(f"provision 4: {dfProvision.shape[0]}")
+            # print(f"provision 4: {dfProvision}")
                         
             
         dfProvision = dfProvision.where(pd.notnull(dfProvision), '')
@@ -409,7 +451,9 @@ async def Get_Data_Actual_Planta(ProvMonth: int):
         df_combined['DescripcionCeCo'] = df_combined['DescripcionCeCo'].apply(lambda x: x.strip() if isinstance(x, str) else x)
         df_combined['DescripcionClaseCosto'] = df_combined['DescripcionClaseCosto'].apply(lambda x: x.strip() if isinstance(x, str) else x)
         
-        df_combined['Mes'] = pd.to_datetime(df_combined['Mes'], unit='ms').dt.strftime('%Y-%m-%dT%H:%M:%S')
+        #df_combined['Mes'] = pd.to_datetime(df_combined['Mes'], unit='ms').dt.strftime('%Y-%m-%dT%H:%M:%S')
+        df_combined['Mes'] = df_combined['Mes'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
+
 
         
         nan_counts = df_combined.isna().sum()
@@ -486,39 +530,76 @@ async def Get_Data_Actual():
     print("Finalizando el proceso de obtención de Actual desde Redis")
     return StreamingResponse(generate(), media_type='application/json')    
 
-
-
-
-# @router.get("/GetItems", response_model=List[ActualPlanta])
-# async def read_items():
-#     cursor = db.actualplanta.find({"Mes": {"$ne": 0}})
-#     all_items = []
-    
-    
-#     async for item in cursor:
-#         item['_id'] = str(item['_id'])
-#         all_items.append(item)
-#         #print(item)    
-#     df = pd.DataFrame(all_items)
-#     summary = df.groupby('Planta')['Monto'].sum().reset_index()
-#     transformed_data = summary.to_dict(orient='records')
-#     print("------")
-#     print("Esta es la data trasnformada", transformed_data)
-#     print("------")
-#     return transformed_data
-
-
-# @router.get("/GetAllDataProvisiones", response_model=List[Provisiones])
-# async def read_items():
-#     cursor = db.provisiones.find()
-#     all_items = []
-    
-    
-#     async for item in cursor:
-#         item['_id'] = str(item['_id'])
-#         all_items.append(item)
+#Proceso Compromisos
+@router.post("/UpdateDataCompromisosToRedis", tags=["Costos"])
+async def Update_Data_Compromisos_To_Redis():
         
-#     df = pd.DataFrame(all_items)
-#     df = df.where(pd.notnull(df), None)  
-#     transformed_data = df.to_dict(orient='records')
-#     return transformed_data
+    All_Data_Compromisos = []
+    
+    Process_Status_Data_Compromisos = RedisDockers.get('Process_Status_Data_Compromisos')
+    if Process_Status_Data_Compromisos is None or Process_Status_Data_Compromisos != 'in progess':
+        
+        print("Iniciando proceso de carga de datos de compromisos en Redis")
+        RedisDockers.set('Process_Status_Data_Compromisos','in progess')
+        CursorCompromisos = db.actualplanta.find()
+        
+        await id_to_string_process(CursorCompromisos,All_Data_Compromisos)
+        df_Compromisos = pd.DataFrame(All_Data_Compromisos)
+        
+        columnas_compromisos = [
+        "Planta", "Categoria", "Partida", "CategoriaActual", "Monto",
+        "Proveedor", "TxtPedido", "OC", "Posicion", "Fecha",
+        "SPConOC", "SPConOCPos","_id"
+        ]
+    
+        #Manteniendo solo las columnas que quiero
+        df_Compromisos_Procesado = df_Compromisos[columnas_compromisos]
+        df_Compromisos_Procesado = df_Compromisos_Procesado[df_Compromisos_Procesado['CategoriaActual'].isin(['OC','SP'])]
+        df_Compromisos_Procesado = df_Compromisos_Procesado[df_Compromisos_Procesado['SPConOC'].isnull() | (df_Compromisos_Procesado['SPConOC'] == '')]
+        # df_Compromisos_Procesado['Mes'] = pd.to_datetime(df_Compromisos_Procesado['Mes'].apply(lambda x: date(2025, x, 1)))
+
+        
+        #print(df_Compromisos_Procesado)
+        
+                    
+        print("Guardando datos en Redis")
+        RedisDockers.set('df_Compromisos',pickle.dumps(df_Compromisos_Procesado))
+        RedisDockers.set('Process_Status_Data_Compromisos','completed')
+        print("Finalizando proceso de carga de datos de compromisos en Redis")
+        
+        return{
+            "Message": "Oki Doki"
+        }
+
+@router.get("/GetDataCompromisosFromRedis", tags=["Costos"])
+async def Get_Data_Compromisos_From_Redis():
+
+    print("Ejecutando get data de Compromisos desde redis")
+    pickled_df = RedisDockers.get('df_Compromisos')
+    df_combined = pickle.loads(pickled_df)
+    # print(df_combined.columns)
+
+    def generate():
+        buffer = io.StringIO()
+        yield '['
+        first = True
+
+        # Configura el tamaño del chunk
+        chunk_size = 1000
+        for i in range(0, len(df_combined), chunk_size):
+            chunk = df_combined.iloc[i:i+chunk_size]
+            if not first:
+                buffer.write(',')
+            first = False
+            # Convierte el chunk a JSON
+            buffer.write(chunk.to_json(orient='records')[1:-1])
+            yield buffer.getvalue()
+            buffer.truncate(0)
+            buffer.seek(0)
+        yield ']'
+
+    # Retorna la respuesta en streaming
+    print("Finalizado el proceso de obtencion de Compromisos desde redis")
+    return StreamingResponse(generate(), media_type='application/json')    
+
+
