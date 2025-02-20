@@ -15,13 +15,15 @@ import time
 import os
 from dotenv import load_dotenv
 import time,datetime
+import pytz
 
 load_dotenv()
 router = APIRouter()
 
 
 #Fechas
-current_date = datetime.datetime.now()
+peru_tz = pytz.timezone("America/Lima")
+current_date = datetime.datetime.now(peru_tz)
 current_day = current_date.weekday()
 current_week = current_date.isocalendar()[1]
 current_month = current_date.month
@@ -106,10 +108,10 @@ async def Update_Data_SAPIndicadores_To_Redis():
         print("Iniciando Carga de datos de SAP a Redis")
         
         print("Obteniendo los datos de MongoDB")
-        CursorIW29 = db.iw29.find()
-        cursorIW37nBase = db.iw37n.find()
-        CursorIW37nReporte = db.iw37nreport.find()
-        CursorIW39 = db.iw39report.find()
+        CursorIW29 = db.iw29.find({"Anho": "2025"})
+        cursorIW37nBase = db.iw37n.find({"Anho": "2025"})
+        CursorIW37nReporte = db.iw37nreport.find({"Anho": "2025"})
+        CursorIW39 = db.iw39report.find({"Anho": "2025"})
         
         print("Procesando los datos de MongoDB")
         await id_to_string_process(CursorIW29,All_Data_IW29)
@@ -204,6 +206,8 @@ async def Process_IW39 ():
     
     All_Data_IW39 = []
     df_result = []
+    print("Fecha actual:", current_date)
+    print("Zona horaria:", current_date.tzinfo)
     print("Semana: ",Semana,"Anho: ",Anho)
     print("Obteniendo datos de MongoDB IW39")
     CursorIW39 = db.iw39report.find({

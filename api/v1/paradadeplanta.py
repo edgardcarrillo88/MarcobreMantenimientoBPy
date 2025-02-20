@@ -137,6 +137,7 @@ async def Process_LineaBase ():
     print("Creando el data frame de Avance Real")
     df_Real = df_Real[df_Real['inicioreal'].notnull()]
     df_Real["TimeReference"] = pd.to_datetime('now')
+
     df_Real['TimeReference'] = df_Real['TimeReference'].dt.ceil('h')
     df_Real['inicioreal'] = df_Real['inicioreal'].dt.ceil('h')
     df_Real["finreal"] = df_Real["finreal"].fillna(df_Real["TimeReference"]).dt.ceil('h')
@@ -153,10 +154,12 @@ async def Process_LineaBase ():
     #Aca determino la fecha mas temprana y mas tardia entre la linea base y la linea real
     start_date = min(df_LineaBase["Ejex"].min(), df_Real["Ejex"].min())
     end_date = max(df_LineaBase["Ejex"].max(), df_Real["Ejex"].max())
+    end_date = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca determino la fecha mas temprana y mas tardia entre la linea base ajustada y la linea real
     start_date2 = min(df_CurvaBaseAjustada["Ejex"].min(), df_Real["Ejex"].min())
     end_date2 = max(df_CurvaBaseAjustada["Ejex"].max(), df_Real["Ejex"].max())
+    end_date2 = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca creo un rango de fechas con la fecha mas temprana y mas tardia entre la linea base y la linea real con saltos de una hora
     ejeXnew = pd.date_range(start=start_date, end=end_date, freq="1h")
