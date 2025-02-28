@@ -731,6 +731,7 @@ async def Get_Process_IW29 ():
 @router.get("/Pruebafechas", tags=["Indicadores"])
 async def Prueba_fechas ():
     return{
+        "current_date":current_date,
         "current_week":current_week,
         "last_week":last_week,
         "Semana":Semana,
