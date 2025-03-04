@@ -22,25 +22,26 @@ router = APIRouter()
 
 
 #Fechas
-peru_tz = pytz.timezone("America/Lima")
-current_date = datetime.datetime.now(peru_tz)
-current_day = current_date.weekday()
-current_week = current_date.isocalendar()[1]
-current_month = current_date.month
-current_year = current_date.year
+def get_current_datetime():
+    peru_tz = pytz.timezone("America/Lima")
+    current_date = datetime.datetime.now(peru_tz)
+    current_day = current_date.weekday()
+    current_week = current_date.isocalendar()[1]
+    current_month = current_date.month
+    current_year = current_date.year
 
-last_date = current_date - datetime.timedelta(days=7)
-last_day = last_date.weekday()
-last_week = last_date.isocalendar()[1]
-last_month = last_date.month
-last_year = last_date.year
+    last_date = current_date - datetime.timedelta(days=7)
+    last_day = last_date.weekday()
+    last_week = last_date.isocalendar()[1]
+    last_month = last_date.month
+    last_year = last_date.year
 
-if current_day == 0:
-    Semana = last_week
-    Anho = last_year
-else:
-    Semana = current_week
-    Anho = current_year
+    if current_day == 0:
+        Semana = last_week
+        Anho = last_year
+    else:
+        Semana = current_week
+        Anho = current_year
     
 
 #Funciones
@@ -206,6 +207,8 @@ async def Process_IW39 ():
     
     All_Data_IW39 = []
     df_result = []
+    current_date, Semana, Anho = get_current_datetime()
+    
     print("Fecha actual:", current_date)
     print("Zona horaria:", current_date.tzinfo)
     print("Semana: ",Semana,"Anho: ",Anho)
@@ -239,6 +242,7 @@ async def Process_IW37nReporte ():
     All_Data_IW37nReporte = []
     df_result = []  
     print("Obteniendo datos de MongoDB IW37nReporte")
+    current_date, Semana, Anho = get_current_datetime()
     CursorIW37nReporte = db.iw37nreport.find({
         "Semana": str(Semana),
         "Anho": str(Anho)
@@ -268,6 +272,7 @@ async def Process_IW37nBase ():
     All_Data_IW37nBase = []
     df_result = []  
     print("Obteniendo datos de MongoDB IW37nBase")
+    current_date, Semana, Anho = get_current_datetime()
     CursorIW37nBase = db.iw37n.find({
         "Semana": str(Semana),
         "Anho": str(Anho)
@@ -365,6 +370,7 @@ async def Process_IW47 ():
     All_Data_IW47 = []
     print("Obteniendo datos de MongoDB IW47")
     # print("last_year: ", last_year)
+    current_year, Semana, Anho = get_current_datetime()
     CursorIW47 = db.iw47.find({
         "Semana": str(Semana),
         "Anho": str(Anho)
@@ -417,6 +423,7 @@ async def Process_IW47 ():
 async def Process_IW29 ():
     All_Data_IW29 = []
     print("Obteniendo datos de MongoDB IW29")
+    current_date, Semana, Anho = get_current_datetime()
     CursorIW29 = db.iw29.find({
         "Semana": str(Semana),
         "Anho": str(Anho)
@@ -730,6 +737,9 @@ async def Get_Process_IW29 ():
 
 @router.get("/Pruebafechas", tags=["Indicadores"])
 async def Prueba_fechas ():
+    
+    current_date, Semana, Anho, current_week, last_week = get_current_datetime()
+    
     return{
         "current_date":current_date,
         "current_week":current_week,
