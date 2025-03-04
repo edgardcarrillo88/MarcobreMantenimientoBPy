@@ -42,6 +42,8 @@ def get_current_datetime():
     else:
         Semana = current_week
         Anho = current_year
+        
+    return current_date, Semana, Anho
     
 
 #Funciones
