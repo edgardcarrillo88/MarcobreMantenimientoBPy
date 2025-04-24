@@ -16,6 +16,7 @@ import os
 from dotenv import load_dotenv
 import time,datetime
 import pytz
+from typing import Optional
 
 load_dotenv()
 router = APIRouter()
@@ -42,14 +43,13 @@ def get_current_datetime():
     else:
         Semana = current_week
         Anho = current_year
-        
+    Semana = last_week #Borrar
     return current_date, Semana, Anho
     
 
 #Funciones
         
 async def id_to_string_process(cursor, array):
-    
     async for item in cursor:
         item['_id'] = str(item['_id']) 
         array.append(item)
@@ -205,7 +205,7 @@ def Get_Data_IW29_From_Redis():
 
 #-----------------------------------------------------------------------
 
-async def Process_IW39 ():    
+async def Process_IW39 (type: Optional[str]=None):    
     
     All_Data_IW39 = []
     df_result = []
@@ -215,14 +215,23 @@ async def Process_IW39 ():
     print("Zona horaria:", current_date.tzinfo)
     print("Semana: ",Semana,"Anho: ",Anho)
     print("Obteniendo datos de MongoDB IW39")
-    CursorIW39 = db.iw39report.find({
-        "Semana": str(Semana),
-        "Anho": str(Anho)
-    })
+    
+    if type is None:
+        print("Obteniendo semanal")
+        CursorIW39 = db.iw39report.find({
+            "Semana": str(Semana),
+            "Anho": str(Anho)
+        })
+    else:
+        print("Obteniendo anual")
+        CursorIW39 = db.iw39report.find(
+            {"Anho": str(Anho)}
+            )
     
     print("Procesando los datos de MongoDB IW39")
     await id_to_string_process(CursorIW39,All_Data_IW39)
     df_IW39 = pd.DataFrame(All_Data_IW39)
+
         
     print("Creando el data frame IW39")
     df_IW39["Orden-Semana"] = df_IW39["Orden"].astype(str) + "-" + df_IW39["Semana"].astype(str)
@@ -240,24 +249,41 @@ async def Process_IW39 ():
         ]]
     return df_IW39
 
-async def Process_IW37nReporte ():
+async def Process_IW37nReporte (type: Optional[str]=None):
     All_Data_IW37nReporte = []
     df_result = []  
     print("Obteniendo datos de MongoDB IW37nReporte")
+    print("Tipo: ", type)
     current_date, Semana, Anho = get_current_datetime()
-    CursorIW37nReporte = db.iw37nreport.find({
-        "Semana": str(Semana),
-        "Anho": str(Anho)
-    })
+    
+    if type is None:
+        print("Obteniendo semanal")
+        CursorIW37nReporte = db.iw37nreport.find({
+            "Semana": str(Semana),
+            "Anho": str(Anho)
+        })
+   
+    else:
+        print("Obteniendo anual")
+        CursorIW37nReporte = db.iw37nreport.find({
+            "Anho": str(Anho),
+        })
     
     print("Procesando los datos de MongoDB IW37nReporte")
     await id_to_string_process(CursorIW37nReporte,All_Data_IW37nReporte)
     df_IW37nReporte = pd.DataFrame(All_Data_IW37nReporte)
+    # print(df_IW37nReporte.columns)
+    # df_IW37nReporte = df_IW37nReporte[[
+    # "Orden",
+    # "Inic",
+    # ]]
+    # print(df_IW37nReporte)
         
     print("Creando el data frame IW37nReporte")
     df_IW37nReporte["Orden-Semana"] = df_IW37nReporte["Orden"].astype(str) + "-" + df_IW37nReporte["Semana"].astype(str)
     df_IW37nReporte["Inic.extr."] = pd.to_datetime(df_IW37nReporte["Inic.extr."].str.replace(".", "/"), format="%d/%m/%Y").dt.date
     df_IW37nReporte['Inic.extr.'] = df_IW37nReporte['Inic.extr.'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
+    
     df_IW37nReporte = df_IW37nReporte[[
         "Orden",
         "Inic.extr.",
@@ -267,18 +293,26 @@ async def Process_IW37nReporte ():
         "StatUsu",
         "Semana",
         "Orden-Semana",
+
         ]]
     return df_IW37nReporte
 
-async def Process_IW37nBase ():
+async def Process_IW37nBase (type: Optional[str]=None):
     All_Data_IW37nBase = []
     df_result = []  
     print("Obteniendo datos de MongoDB IW37nBase")
     current_date, Semana, Anho = get_current_datetime()
-    CursorIW37nBase = db.iw37n.find({
-        "Semana": str(Semana),
-        "Anho": str(Anho)
-    })
+    if type is None:
+        print("Obteniendo semanal")
+        CursorIW37nBase = db.iw37n.find({
+            "Semana": str(Semana),
+            "Anho": str(Anho)
+        })
+    else:
+        print("Obteniendo anual")
+        CursorIW37nBase = db.iw37n.find({
+            "Anho": str(Anho),
+        })
     
     print("Procesando los datos de MongoDB IW37nBase")
     await id_to_string_process(CursorIW37nBase,All_Data_IW37nBase)
@@ -329,12 +363,20 @@ async def Process_Condiciones ():
     
     return df_Indicadores
 
-async def Process_IW37nBase_2 ():
-     
-    df_IW37nBase = await Process_IW37nBase()
-    Result_IW37nReporte = await Process_IW37nReporte()
-    Result_Condiciones = await Process_Condiciones()
-    Result_IW39 = await Process_IW39 ()
+async def Process_IW37nBase_2 (type: Optional[str]=None):
+    
+    if type is None:
+        print("Obteniendo semanal")
+        df_IW37nBase = await Process_IW37nBase()
+        Result_IW37nReporte = await Process_IW37nReporte()
+        Result_Condiciones = await Process_Condiciones()
+        Result_IW39 = await Process_IW39 ()
+    else:
+        print("Obteniendo anual")
+        df_IW37nBase = await Process_IW37nBase(type="Total")
+        Result_IW37nReporte = await Process_IW37nReporte(type="Total")
+        Result_Condiciones = await Process_Condiciones()
+        Result_IW39 = await Process_IW39 (type="Total")
     
     
     Result_IW39 = Result_IW39[["Status del sistema","Orden-Semana"]]
@@ -368,42 +410,62 @@ async def Process_IW37nBase_2 ():
         
     return df_IW37nBase
 
-async def Process_IW47 ():
+async def Process_IW47 (type: Optional[str]=None):
     All_Data_IW47 = []
     print("Obteniendo datos de MongoDB IW47")
-    # print("last_year: ", last_year)
     current_year, Semana, Anho = get_current_datetime()
-    CursorIW47 = db.iw47.find({
-        "Semana": str(Semana),
-        "Anho": str(Anho)
-    })
+    print("Año actual: ", current_year,"Semana: ",Semana,"Anho: ",Anho)
+    if type is None:
+        print("Obteniendo semanal")
+        CursorIW47 = db.iw47.find({
+            "Semana": str(Semana),
+            "Anho": str(Anho)
+        })
+        df_IW37nBase = await Process_IW37nBase()
+        df_IW37nReporte = await Process_IW37nReporte()
+        df_Condiciones = await Process_Condiciones()
+        df_IW39 = await Process_IW39()
+    else:
+        print("Obteniendo anual")
+        CursorIW47 = db.iw47.find({
+            "Anho": str(Anho)
+        })
+        df_IW37nBase = await Process_IW37nBase(type="Total")
+        df_IW37nReporte = await Process_IW37nReporte(type="Total")
+        df_Condiciones = await Process_Condiciones()
+        df_IW39 = await Process_IW39(type="Total")
     
     print("Procesando los datos de MongoDB IW47")
     await id_to_string_process(CursorIW47,All_Data_IW47)
         
     print("Creando los data frame IW47")
     df_IW47 = pd.DataFrame(All_Data_IW47)
-    df_IW37nBase = await Process_IW37nBase()
-    df_IW37nReporte = await Process_IW37nReporte()
-    df_Condiciones = await Process_Condiciones()
-    df_IW39 = await Process_IW39()
-    
     
     df_IW47 = df_IW47.drop_duplicates()
     df_IW47 = pd.merge(df_IW47,df_IW37nBase[['Orden','Revisión']], on='Orden',how='left')
-    # df_IW47["RevisionIW47"] = "SEM" + df_IW47["Semana"].astype(str) + "-" + str(last_year)[-2:]
-    df_IW47["RevisionIW47"] = "SEM" + df_IW47["Semana"].astype(str).str.zfill(2) + "-" + str(current_year)[-2:]
+    df_IW47["RevisionIW47"] = "SEM" + df_IW47["Semana"].astype(str).str.zfill(2) + "-" + str(Anho)[-2:]
     df_IW47["Condicional"] = np.where(df_IW47["Revisión"] != df_IW47["RevisionIW47"], 1, 0)
     df_IW47 = df_IW47[df_IW47["Condicional"] == 1]
     
-    df_IW47 = pd.merge(df_IW47,df_IW39[['Orden',"CpoClasif", "P", "PtoTrbRes", "Status del sistema", "StatUsu", "Texto breve", "Ubicación técnica"]], on='Orden',how='left')
+    #Nuevo
+    df_IW47["Orden-Semana"] = df_IW47["Orden"].astype(str) + "-" + df_IW47["Semana"].astype(str)
+    # print("Concatenando")
+    # print(df_IW47)
+    
+    #df_IW47 = pd.merge(df_IW47,df_IW39[['Orden',"CpoClasif", "P", "PtoTrbRes", "Status del sistema", "StatUsu", "Texto breve", "Ubicación técnica"]], on='Orden',how='left')
+    df_IW47 = pd.merge(df_IW47,df_IW39[["Orden-Semana","CpoClasif", "P", "PtoTrbRes", "Status del sistema", "StatUsu", "Texto breve", "Ubicación técnica"]], on='Orden-Semana',how='left')
+    
+    # print(df_IW47)
+    
     df_IW47.rename(columns={'P':'Prioridad'}, inplace=True)
     df_IW47.rename(columns={'Status del sistema':'Status Sistema Reportado'}, inplace=True)
+    df_IW47["Status Sistema Reportado"] = df_IW47["Status Sistema Reportado"].str[:9].str.strip()
     df_IW47["Status Sistema Reportado"] = df_IW47["Status Sistema Reportado"].str[:9].str.strip()
     df_IW47.drop(columns=["Condicional","Revisión"], inplace=True)
     df_IW47.rename(columns={'RevisionIW47':'Revisión'}, inplace=True)   
     df_IW47 = df_IW47.drop_duplicates()
-    df_IW47 = pd.merge(df_IW47,df_IW37nReporte[['Orden','Inic.extr.']], on='Orden',how='left')
+    #df_IW47 = pd.merge(df_IW47,df_IW37nReporte[['Orden','Inic.extr.']], on='Orden',how='left')
+    df_IW47 = pd.merge(df_IW47,df_IW37nReporte[['Orden-Semana','Inic.extr.']], on='Orden-Semana',how='left')
     df_IW47 = df_IW47.drop_duplicates()
     df_IW47["UT"] = df_IW47["Ubicación técnica"].str[:13].str.strip()
     
@@ -419,23 +481,78 @@ async def Process_IW47 ():
     df_IW47 = df_IW47[df_IW47['Temp'] == 0]
     df_IW47.drop(columns=["_id", "Temp"], inplace=True)
     df_IW47.rename(columns={'Inic.extr.':'InicioExtremo'}, inplace=True)
+    # print(len(df_IW47))
     
     return df_IW47
 
-async def Process_IW29 ():
-    All_Data_IW29 = []
-    print("Obteniendo datos de MongoDB IW29")
-    current_date, Semana, Anho = get_current_datetime()
-    CursorIW29 = db.iw29.find({
-        "Semana": str(Semana),
-        "Anho": str(Anho)
-    })
-    
+async def Process_IW29 (type: Optional[str] = None):
+    # try:
+    #     if type is None:
+    #         All_Data_IW29 = []
+    #         print("Obteniendo datos de MongoDB IW29")
+    #         current_date, Semana, Anho = get_current_datetime()
+    #         print("Semana: ", Semana, "Anho: ", Anho)
+
+    #         print("Obteniendo semanal")
+    #         # All_Data_IW29 = await db.iw29.find({
+    #         #     "Semana": "11",#str(Semana)
+    #         #     "Anho": str(Anho)
+    #         # }, {
+    #         #     "_id": 0
+    #         # }).to_list(length=None) 
+    #         CursorIW29 = db.iw29.find({
+    #             "Semana": str(Semana),
+    #             "Anho": str(Anho)
+    #         })
+                 
+    #         print("Obteniendo semanal")
+    #     else:
+    #         print("Obteniendo anual")
+    #         CursorIW29 = db.iw29.find({
+    #             "Anho": str(Anho)
+    #         })
+
+    #     print("Procesando los datos de MongoDB IW29")
+    #     await id_to_string_process(CursorIW29,All_Data_IW29)
+
+    #     print(len(All_Data_IW29))
+
+    #     print("Creando los data frame IW29")
+    #     df_IW29 = pd.DataFrame(All_Data_IW29)
+
+    #     return df_IW29
+    # except Exception as e:
+    #     print(e)
+        
+
+    if type is None:
+        All_Data_IW29 = []
+        print("Obteniendo datos de MongoDB IW29")
+        current_date, Semana, Anho = get_current_datetime()
+        print("Semana: ", Semana, "Anho: ", Anho)
+
+        print("Obteniendo semanal")
+        CursorIW29 = db.iw29.find({
+            "Semana": str(Semana),
+            "Anho": str(Anho)
+        })
+        print("Obteniendo semanal")
+    else:
+        print("Obteniendo anual")
+        CursorIW29 = db.iw29.find({
+            "Anho": str(Anho)
+        })
+
     print("Procesando los datos de MongoDB IW29")
     await id_to_string_process(CursorIW29,All_Data_IW29)
-        
+
+    # print(len(All_Data_IW29))
+
     print("Creando los data frame IW29")
     df_IW29 = pd.DataFrame(All_Data_IW29)
+    
+    # print(df_IW29)
+    # print(df_IW29.columns)
     
     dataPrioridad = [
     {"Prioridad": "1", "DescripcionPrioridad": "E:Emergencia"},
@@ -676,7 +793,6 @@ async def Get_Process_IW39 ():
     print("Finalizando el proceso de obtención y procesamiento de IW39 desde MongoDB")
     return StreamingResponse(generate(), media_type='application/json')
 
-
 @router.get("/GetAndProcessIW37nReporte", tags=["Indicadores"])
 async def Get_Process_IW37nReporte ():
     df_result = []  
@@ -690,7 +806,6 @@ async def Get_Process_IW37nReporte ():
     print("Finalizando el proceso de obtención y procesamiento de IW37nReporte desde MongoDB")
     return StreamingResponse(generate(), media_type='application/json')
 
-
 @router.get("/GetAndProcessIW37nBase", tags=["Indicadores"])
 async def Get_Process_IW37nReporte ():
     df_result = []  
@@ -703,7 +818,6 @@ async def Get_Process_IW37nReporte ():
             yield from chunk
     print("Finalizando el proceso de obtención y procesamiento de IW37nBase desde MongoDB")
     return StreamingResponse(generate(), media_type='application/json')
-
 
 @router.get("/GetAndProcessIW47", tags=["Indicadores"])
 async def Get_Process_IW47 ():
@@ -723,6 +837,7 @@ async def Get_Process_IW29 ():
     df_result = []  
     
     df_IW29 = await Process_IW29()
+
     
     function_return_Streaming(df_IW29,df_result)
     def generate():
@@ -731,22 +846,93 @@ async def Get_Process_IW29 ():
     print("Finalizando el proceso de obtención y procesamiento de IW29 desde MongoDB")
     return StreamingResponse(generate(), media_type='application/json')
 
+@router.post("/UpdateDataIndicadoresToRedis", tags=["Indicadores"])
+async def Update_Data_Indicadores_To_Redis ():
 
-
-
-
-
+    print("iniciando update to redis indicadores")
+    df_IW29 = await Process_IW29()
+    # df_IW39 = await Process_IW39("Total")
+    # df_IW37nReporte = await Process_IW37nReporte("Total")
+    # df_IW37nBase = await Process_IW37nBase_2("Total")
+    # df_IW47 = await Process_IW47("Total")
+    df_IW39 = await Process_IW39()
+    df_IW37nReporte = await Process_IW37nReporte()
+    df_IW37nBase = await Process_IW37nBase_2()
+    df_IW47 = await Process_IW47()
+    
+    #Proceso en Redis
+    
+    Process_Status_Data_Indicadores = RedisDockers.get('Process_Status_Data_Indicadores')
+    print(Process_Status_Data_Indicadores)
+    
+    if Process_Status_Data_Indicadores is None or Process_Status_Data_Indicadores.decode('utf-8') != 'in progess':
+        
+        RedisDockers.set('Process_Status_Data_Indicadores','in progess')
+        print("Iniciando Carga de datos de indicadores a Redis")
+        
+        RedisDockers.set('df_IW29',pickle.dumps(df_IW29))
+        RedisDockers.set('df_IW39',pickle.dumps(df_IW39))
+        RedisDockers.set('df_IW37nReporte',pickle.dumps(df_IW37nReporte))
+        RedisDockers.set('df_IW37nBase',pickle.dumps(df_IW37nBase))
+        RedisDockers.set('df_IW47',pickle.dumps(df_IW47))
+        print("Proceso de Carga de datos de indicadores a Redis finalizado")
+        RedisDockers.set('Process_Status_Data_Indicadores','completed')
+        
+        return ({
+            "Message": "Oki Doki"
+            })
+    
+@router.get('/GetDataIndicadoresFromRedis', tags=["Indicadores"])
+async def Get_Data_Indicadores_From_Redis():
+    
+    print("Obteniendo datos de indicadores de redis")
+    
+    pickled_IW29 = RedisDockers.get('df_IW29')
+    pickled_IW39 = RedisDockers.get('df_IW39')
+    pickled_IW37nReporte = RedisDockers.get('df_IW37nReporte')
+    pickled_IW37nBase = RedisDockers.get('df_IW37nBase')
+    pickled_IW47 = RedisDockers.get('df_IW47')
+    
+    df_IW29 = pickle.loads(pickled_IW29)
+    df_IW39 = pickle.loads(pickled_IW39)
+    df_IW37nReporte = pickle.loads(pickled_IW37nReporte)
+    df_IW37nBase = pickle.loads(pickled_IW37nBase)
+    df_IW47 = pickle.loads(pickled_IW47)
+    
+    df_IW29 = df_IW29.where(pd.notnull(df_IW29), '')
+    df_IW39 = df_IW39.where(pd.notnull(df_IW39), '')
+    df_IW37nReporte = df_IW37nReporte.where(pd.notnull(df_IW37nReporte), '')
+    df_IW37nBase = df_IW37nBase.where(pd.notnull(df_IW37nBase), '')
+    df_IW47 = df_IW47.where(pd.notnull(df_IW47), '')
+    
+    data_IW29 = df_IW29.to_dict(orient='records')
+    data_IW39 = df_IW39.to_dict(orient='records')
+    data_IW37nReporte = df_IW37nReporte.to_dict(orient='records')
+    data_IW37nBase = df_IW37nBase.to_dict(orient='records')
+    data_IW47 = df_IW47.to_dict(orient='records')
+    
+    
+    print("Finalizando el proceso de Obteniendo datos de Indicadores desde redis")
+    
+    return {
+        "data_IW29": data_IW29,
+        "data_IW39": data_IW39,
+        "data_IW37nReporte": data_IW37nReporte,
+        "data_IW37nBase": data_IW37nBase,
+        "data_IW47": data_IW47,
+    }
 
 @router.get("/Pruebafechas", tags=["Indicadores"])
 async def Prueba_fechas ():
     
-    current_date, Semana, Anho, current_week, last_week = get_current_datetime()
-    
-    return{
-        "current_date":current_date,
-        "current_week":current_week,
-        "last_week":last_week,
-        "Semana":Semana,
-        "Anho":Anho
-    }
+    #current_date, Semana, Anho, current_week, last_week = get_current_datetime()
+    df_IW47 = await Process_IW39("Total")
+    return "Oki Doki"
+    # return{
+    #     "current_date":current_date,
+    #     "current_week":current_week,
+    #     "last_week":last_week,
+    #     "Semana":Semana,
+    #     "Anho":Anho
+    # }
     
