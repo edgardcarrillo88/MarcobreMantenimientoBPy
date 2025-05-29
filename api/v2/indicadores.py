@@ -21,7 +21,7 @@ from typing import Optional
 load_dotenv()
 router = APIRouter()
 
-
+print("Prueba de commit")
 #Fechas
 def get_current_datetime():
     peru_tz = pytz.timezone("America/Lima")
