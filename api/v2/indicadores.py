@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Path
 from fastapi.responses import StreamingResponse
 from models.ActualPlanta import ActualPlanta
 from models.Provisiones import Provisiones
@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 import time,datetime
 import pytz
 from typing import Optional
+from enum import Enum
 
 load_dotenv()
 router = APIRouter()
@@ -45,7 +46,7 @@ def get_current_datetime():
         Semana = current_week
         Anho = current_year
     #Semana = last_week #Borrar
-    #Semana = "18" #Borrar esto es para el mensual
+    Semana = "22" #Borrar esto es para el mensual
     print("Semana: ",Semana,"Anho: ",Anho, "Anho anterior: ",Anho-1)
     return current_date, Semana, Anho
     
@@ -201,7 +202,7 @@ def Get_Data_IW29_From_Redis():
 
 
 #Poceso de DataFrames para respuesta individual
-async def Process_IW39 (type: Optional[str]=None):    
+async def Process_IW39 (PeriodoActual: Optional[str]=None):    
     
     All_Data_IW39 = []
     current_date, Semana, Anho = get_current_datetime()
@@ -239,6 +240,7 @@ async def Process_IW39 (type: Optional[str]=None):
             "Semana": str(Semana),
             "Anho": str(Anho)   
         })
+        return CursorIW39
         
     switch = {
         "Anual": MongoDB_Anual,
@@ -246,7 +248,7 @@ async def Process_IW39 (type: Optional[str]=None):
         "Semanal": MongoDB_Semanal
     }
     
-    Result = switch.get(type, MongoDB_Semanal)()
+    Result = switch.get(PeriodoActual, MongoDB_Semanal)()
     
     #await id_to_string_process(CursorIW39,All_Data_IW39)
     await id_to_string_process(Result,All_Data_IW39)
@@ -267,7 +269,7 @@ async def Process_IW39 (type: Optional[str]=None):
         ]]
     return df_IW39
 
-async def Process_IW37nReporte (type: Optional[str]=None):
+async def Process_IW37nReporte (PeriodoActual: Optional[str]=None):
     All_Data_IW37nReporte = []
     current_date, Semana, Anho = get_current_datetime()
 
@@ -312,7 +314,7 @@ async def Process_IW37nReporte (type: Optional[str]=None):
         "Semanal": MongoDB_Semanal
     }
     
-    Result = switch.get(type, MongoDB_Semanal)()
+    Result = switch.get(PeriodoActual, MongoDB_Semanal)()
     
     #await id_to_string_process(CursorIW37nReporte,All_Data_IW37nReporte)
     await id_to_string_process(Result,All_Data_IW37nReporte)
@@ -342,7 +344,7 @@ async def Process_IW37nReporte (type: Optional[str]=None):
     
     return df_IW37nReporte
 
-async def Process_IW37nBase (type: Optional[str]=None):
+async def Process_IW37nBase (PeriodoActual: Optional[str]=None):
     All_Data_IW37nBase = [] 
     current_date, Semana, Anho = get_current_datetime()
     
@@ -387,7 +389,7 @@ async def Process_IW37nBase (type: Optional[str]=None):
         "Semanal": MongoDB_Semanal
     }
     
-    Result = switch.get(type, MongoDB_Semanal)()
+    Result = switch.get(PeriodoActual, MongoDB_Semanal)()
     
     #await id_to_string_process(CursorIW37nBase,All_Data_IW37nBase)
     await id_to_string_process(Result,All_Data_IW37nBase)
@@ -435,22 +437,26 @@ async def Process_Condiciones ():
     
     return df_Indicadores
 
-async def Process_IW37nBase_2 (type: Optional[str]=None):
+async def Process_IW37nBase_2 (PeriodoActual: Optional[str]=None):
     
-    if type is None:
-        print("Obteniendo semanal")
-        df_IW37nBase = await Process_IW37nBase()
-        Result_IW37nReporte = await Process_IW37nReporte()
-        Result_Condiciones = await Process_Condiciones()
-        Result_IW39 = await Process_IW39 ()
-    else:
-        print("Obteniendo anual")
-        df_IW37nBase = await Process_IW37nBase(type="Total")
-        Result_IW37nReporte = await Process_IW37nReporte(type="Total")
-        Result_Condiciones = await Process_Condiciones()
-        Result_IW39 = await Process_IW39 (type="Total")
+    # if type is None:
+    #     print("Obteniendo semanal")
+    #     df_IW37nBase = await Process_IW37nBase()
+    #     Result_IW37nReporte = await Process_IW37nReporte()
+    #     Result_Condiciones = await Process_Condiciones()
+    #     Result_IW39 = await Process_IW39 ()
+    # else:
+    #     print("Obteniendo anual")
+    #     df_IW37nBase = await Process_IW37nBase(type="Total")
+    #     Result_IW37nReporte = await Process_IW37nReporte(type="Total")
+    #     Result_Condiciones = await Process_Condiciones()
+    #     Result_IW39 = await Process_IW39 (type="Total")
     
-    
+    df_IW37nBase = await Process_IW37nBase(PeriodoActual)
+    Result_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
+    Result_Condiciones = await Process_Condiciones()
+    Result_IW39 = await Process_IW39 (PeriodoActual)
+        
     Result_IW39 = Result_IW39[["Status del sistema","Orden-Semana"]]
     df_IW37nBase = pd.merge(df_IW37nBase, Result_IW39, on='Orden-Semana',how='left')
     df_IW37nBase.rename(columns={'Status del sistema':'Status Sistema Reportado'}, inplace=True)
@@ -482,83 +488,67 @@ async def Process_IW37nBase_2 (type: Optional[str]=None):
         
     return df_IW37nBase
 
-@router.get("/GetAndProcessIW37nBase_2", tags=["Indicadores"]) #Revisar ya que hace los mismo que la función de arriba
-async def Process_IW37nBase_2 (type: Optional[str]=None):
-    df_result = []  
-    
-    if type is None:
-        print("Obteniendo semanal IW37nBase")
-        df_IW37nBase = await Process_IW37nBase()
-        Result_IW37nReporte = await Process_IW37nReporte()
-        Result_Condiciones = await Process_Condiciones()
-        Result_IW39 = await Process_IW39 ()
-    else:
-        print("Obteniendo anual IW37nBase")
-        df_IW37nBase = await Process_IW37nBase(type="Total")
-        Result_IW37nReporte = await Process_IW37nReporte(type="Total")
-        Result_Condiciones = await Process_Condiciones()
-        Result_IW39 = await Process_IW39 (type="Total")
-    
-    
-    Result_IW39 = Result_IW39[["Status del sistema","Orden-Semana"]]
-    df_IW37nBase = pd.merge(df_IW37nBase, Result_IW39, on='Orden-Semana',how='left')
-    df_IW37nBase.rename(columns={'Status del sistema':'Status Sistema Reportado'}, inplace=True)
-    
-    Result_IW37nReporte = Result_IW37nReporte[["Trbjo real","StatUsu","Orden-Semana"]]
-    df_IW37nBase = pd.merge(df_IW37nBase, Result_IW37nReporte, on='Orden-Semana',how='left')
-    df_IW37nBase.rename(columns={'Trbjo real_x':'Trbjo real'}, inplace=True)
-    df_IW37nBase.rename(columns={'StatUsu_x':'StatUsu'}, inplace=True)
-    df_IW37nBase.rename(columns={'Trbjo real_y':'Trabajo Real'}, inplace=True)
-    df_IW37nBase.rename(columns={'StatUsu_y':'Status Usuario'}, inplace=True)
-    
-    df_IW37nBase['Status Sistema Reportado'] = df_IW37nBase['Status Sistema Reportado'].str[:9]
-    Result_Condiciones.rename(columns={'StatusSistema':'Status Sistema Reportado'}, inplace=True)
-    df_IW37nBase = pd.merge(df_IW37nBase, Result_Condiciones[['Status Sistema Reportado','StatusKPI']], on='Status Sistema Reportado',how='left')
-    df_IW37nBase["OTCerradas"] =  np.where(df_IW37nBase["StatusKPI"] == "Cerrado", df_IW37nBase["Orden"], 0)
-    df_IW37nBase["UT"] = df_IW37nBase["Ubic.técn."].str[:13].str.strip()
-    
-    #Temporal
-    #---------------------------------------------
-    df_IW37nBase["UT2"] = df_IW37nBase["Ubic.técn."].str[9:13].str.strip()
-    df_IW37nBase["Temp"] = np.where(df_IW37nBase["UT2"] == "SUBS", df_IW37nBase["Ubic.técn."], df_IW37nBase["UT"])
-    df_IW37nBase["UT"] = df_IW37nBase["Temp"]
-    df_IW37nBase.drop(columns=["Temp","UT2"], inplace=True)
-    #---------------------------------------------
-    
-    df_IW37nBase = pd.merge(df_IW37nBase, Result_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
-    Result_Condiciones.rename(columns={'Ptotrabajo':'PtoTrbRes'}, inplace=True)
-    df_IW37nBase = pd.merge(df_IW37nBase, Result_Condiciones[['PtoTrbRes','Denominacion', 'AreaResponsable', 'Empresa', 'TipoContrato']], on='PtoTrbRes',how='left')
-    
-    function_return_Streaming(df_IW37nBase,df_result)
-    def generate():
-        for chunk in df_result:
-            yield from chunk
-    return StreamingResponse(generate(), media_type='application/json')
-
-async def Process_IW47 (type: Optional[str]=None):
+async def Process_IW47 (PeriodoActual: Optional[str]=None):
     All_Data_IW47 = []
     current_year, Semana, Anho = get_current_datetime()
-    if type is None:
-        print("Obteniendo semanal IW47")
-        CursorIW47 = db.iw47.find({
-            "Semana": str(Semana),
-            "Anho": str(Anho)
-        })
-        df_IW37nBase = await Process_IW37nBase()
-        df_IW37nReporte = await Process_IW37nReporte()
-        df_Condiciones = await Process_Condiciones()
-        df_IW39 = await Process_IW39()
-    else:
+    # if type is None:
+    #     print("Obteniendo semanal IW47")
+    #     CursorIW47 = db.iw47.find({
+    #         "Semana": str(Semana),
+    #         "Anho": str(Anho)
+    #     })
+    #     df_IW37nBase = await Process_IW37nBase()
+    #     df_IW37nReporte = await Process_IW37nReporte()
+    #     df_Condiciones = await Process_Condiciones()
+    #     df_IW39 = await Process_IW39()
+    # else:
+    #     print("Obteniendo anual IW47")
+    #     CursorIW47 = db.iw47.find({
+    #         "Anho": str(Anho)
+    #     })
+    #     df_IW37nBase = await Process_IW37nBase(type="Total")
+    #     df_IW37nReporte = await Process_IW37nReporte(type="Total")
+    #     df_Condiciones = await Process_Condiciones()
+    #     df_IW39 = await Process_IW39(type="Total")
+        
+    df_IW37nBase = await Process_IW37nBase(PeriodoActual)
+    df_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
+    df_Condiciones = await Process_Condiciones()
+    df_IW39 = await Process_IW39(PeriodoActual)
+    
+    def MongoDB_Anual():
         print("Obteniendo anual IW47")
         CursorIW47 = db.iw47.find({
             "Anho": str(Anho)
         })
-        df_IW37nBase = await Process_IW37nBase(type="Total")
-        df_IW37nReporte = await Process_IW37nReporte(type="Total")
-        df_Condiciones = await Process_Condiciones()
-        df_IW39 = await Process_IW39(type="Total")
+        return CursorIW47
+        
+    def MongoDB_Mensual():
+        print("Obteniendo mensual IW47")
+        CursorIW47 = db.iw47.find({
+            "Semana": {"$in": [str(Semana), str(Semana-1), str(Semana-2), str(Semana-3)],},
+            "Anho": str(Anho)
+        })
+        return CursorIW47
+        
+    def MongoDB_Semanal():    
+        print("Obteniendo semanal IW47")
+        CursorIW47 = db.iw47.find({
+            "Semana": str(Semana),
+            "Anho": str(Anho)   
+        })
+        return CursorIW47
+        
+    switch = {
+        "Anual": MongoDB_Anual,
+        "Mensual": MongoDB_Mensual,
+        "Semanal": MongoDB_Semanal
+    }
     
-    await id_to_string_process(CursorIW47,All_Data_IW47)
+    Result = switch.get(PeriodoActual, MongoDB_Semanal)()
+    
+    #await id_to_string_process(CursorIW47,All_Data_IW47)
+    await id_to_string_process(Result,All_Data_IW47)
         
     df_IW47 = pd.DataFrame(All_Data_IW47)
     df_IW47 = df_IW47.drop_duplicates()
@@ -603,7 +593,7 @@ async def Process_IW47 (type: Optional[str]=None):
 
     return df_IW47
 
-async def Process_IW29 (type: Optional[str] = None):
+async def Process_IW29 (type: Optional[str]=None):
     
     if type is None:
         All_Data_IW29 = []
@@ -890,6 +880,60 @@ async def Get_Process_IW37nBase (): #Get_Process_IW37nReporte
             yield from chunk
     return StreamingResponse(generate(), media_type='application/json')
 
+@router.get("/GetAndProcessIW37nBase_2", tags=["Indicadores"])
+async def Process_IW37nBase_2 (type: Optional[str]=None):
+    df_result = []  
+    
+    if type is None:
+        print("Obteniendo semanal IW37nBase")
+        df_IW37nBase = await Process_IW37nBase()
+        Result_IW37nReporte = await Process_IW37nReporte()
+        Result_Condiciones = await Process_Condiciones()
+        Result_IW39 = await Process_IW39 ()
+    else:
+        print("Obteniendo anual IW37nBase")
+        df_IW37nBase = await Process_IW37nBase(type="Total")
+        Result_IW37nReporte = await Process_IW37nReporte(type="Total")
+        Result_Condiciones = await Process_Condiciones()
+        Result_IW39 = await Process_IW39 (type="Total")
+    
+    
+    
+    Result_IW39 = Result_IW39[["Status del sistema","Orden-Semana"]]
+    df_IW37nBase = pd.merge(df_IW37nBase, Result_IW39, on='Orden-Semana',how='left')
+    df_IW37nBase.rename(columns={'Status del sistema':'Status Sistema Reportado'}, inplace=True)
+    
+    Result_IW37nReporte = Result_IW37nReporte[["Trbjo real","StatUsu","Orden-Semana"]]
+    df_IW37nBase = pd.merge(df_IW37nBase, Result_IW37nReporte, on='Orden-Semana',how='left')
+    df_IW37nBase.rename(columns={'Trbjo real_x':'Trbjo real'}, inplace=True)
+    df_IW37nBase.rename(columns={'StatUsu_x':'StatUsu'}, inplace=True)
+    df_IW37nBase.rename(columns={'Trbjo real_y':'Trabajo Real'}, inplace=True)
+    df_IW37nBase.rename(columns={'StatUsu_y':'Status Usuario'}, inplace=True)
+    
+    df_IW37nBase['Status Sistema Reportado'] = df_IW37nBase['Status Sistema Reportado'].str[:9]
+    Result_Condiciones.rename(columns={'StatusSistema':'Status Sistema Reportado'}, inplace=True)
+    df_IW37nBase = pd.merge(df_IW37nBase, Result_Condiciones[['Status Sistema Reportado','StatusKPI']], on='Status Sistema Reportado',how='left')
+    df_IW37nBase["OTCerradas"] =  np.where(df_IW37nBase["StatusKPI"] == "Cerrado", df_IW37nBase["Orden"], 0)
+    df_IW37nBase["UT"] = df_IW37nBase["Ubic.técn."].str[:13].str.strip()
+    
+    #Temporal
+    #---------------------------------------------
+    df_IW37nBase["UT2"] = df_IW37nBase["Ubic.técn."].str[9:13].str.strip()
+    df_IW37nBase["Temp"] = np.where(df_IW37nBase["UT2"] == "SUBS", df_IW37nBase["Ubic.técn."], df_IW37nBase["UT"])
+    df_IW37nBase["UT"] = df_IW37nBase["Temp"]
+    df_IW37nBase.drop(columns=["Temp","UT2"], inplace=True)
+    #---------------------------------------------
+    
+    df_IW37nBase = pd.merge(df_IW37nBase, Result_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
+    Result_Condiciones.rename(columns={'Ptotrabajo':'PtoTrbRes'}, inplace=True)
+    df_IW37nBase = pd.merge(df_IW37nBase, Result_Condiciones[['PtoTrbRes','Denominacion', 'AreaResponsable', 'Empresa', 'TipoContrato']], on='PtoTrbRes',how='left')
+    
+    function_return_Streaming(df_IW37nBase,df_result)
+    def generate():
+        for chunk in df_result:
+            yield from chunk
+    return StreamingResponse(generate(), media_type='application/json')
+
 @router.get("/GetAndProcessIW47", tags=["Indicadores"])
 async def Get_Process_IW47 ():
     df_result = []  
@@ -921,12 +965,12 @@ async def Get_Process_IW29 ():
 #Poceso de DataFrames para respuesta desde Redis
 
 @router.get("/GetAndProcessIW37nBase_3", tags=["Indicadores"])
-async def Process_IW37nBase_3(ype: Optional[str]=None):
+async def Process_IW37nBase_3(PeriodoActual: Optional[str]=None):
 
-    df_IW37nBase = await Process_IW37nBase()
-    Result_IW37nReporte = await Process_IW37nReporte()
+    df_IW37nBase = await Process_IW37nBase(PeriodoActual)
+    Result_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
     Result_Condiciones = await Process_Condiciones_2()
-    Result_IW39 = await Process_IW39 ()
+    Result_IW39 = await Process_IW39 (PeriodoActual)
 
     Result_IW39 = Result_IW39[["Status del sistema","Orden-Semana"]]
     df_IW37nBase = pd.merge(df_IW37nBase, Result_IW39, on='Orden-Semana',how='left')
@@ -990,10 +1034,10 @@ async def Process_Condiciones_2 ():
     return df_Indicadores2
 
 @router.get("/backlog", tags=["Indicadores"])
-async def Process_Backlog (): #Process_Baklog
+async def Process_Backlog (PeriodoActual: Optional[str]=None): #Process_Baklog
     df_result = []	
 
-    Result_IW37nReporte = await Process_IW37nReporte()
+    Result_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
     Result_Condiciones = await Process_Condiciones_2()
     Result_Criticidad = await Process_CriticidadEquipos()
 
@@ -1107,35 +1151,53 @@ async def Process_CriticidadEquipos ():
 
 #Redis To Client
 
-@router.post("/UpdateDataIndicadoresToRedis", tags=["Indicadores"])
-async def Update_Data_Indicadores_To_Redis ():
+class Periodo (str, Enum):
+    Semanal = "Semanal"
+    Mensual = "Mensual"
+    Anual = "Anual"
+
+
+@router.post("/UpdateDataIndicadoresToRedis/{PeriodoActual}", tags=["Indicadores"])
+async def Update_Data_Indicadores_To_Redis (
+    PeriodoActual: Periodo = Path(..., description="Periodo de actualización de indicadores")
+):
+
+
 
     #Proceso Semanal
+    print("---------------------------------------")
     print("Procesando Backlog")
-    df_Backlog = await Process_Backlog()
+    df_Backlog = await Process_Backlog(PeriodoActual)
+    print("---------------------------------------")
+    
     print("Procesando HH Disponibles")
     df_HHDisponibles = await Process_HHDisponibles()
+    print("---------------------------------------")
+    
     print("Procesando Criticidad Equipos")
     df_Criticidad = await Process_CriticidadEquipos()
+    print("---------------------------------------")
+    
     print("Procesando IW29")
     df_IW29 = await Process_IW29()
+    print("---------------------------------------")
+    
     print("Procesando IW39")
-    df_IW39 = await Process_IW39()
+    df_IW39 = await Process_IW39(PeriodoActual)
+    print("---------------------------------------")
+    
     print("Procesando IW37nReporte")
-    df_IW37nReporte = await Process_IW37nReporte()
+    df_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
+    print("---------------------------------------")
+    
     print("Procesando IW37nBase")
-    df_IW37nBase = await Process_IW37nBase_3()
+    df_IW37nBase = await Process_IW37nBase_3(PeriodoActual)
+    print("---------------------------------------")
+    
     print("Procesando IW47")
-    df_IW47 = await Process_IW47()
+    df_IW47 = await Process_IW47(PeriodoActual)
+    print("---------------------------------------")
     
-    
-    #Proceso Anual
-    # df_IW39 = await Process_IW39("Total")
-    # df_IW37nReporte = await Process_IW37nReporte("Total")
-    # df_IW37nBase = await Process_IW37nBase_2("Total")
-    # df_IW47 = await Process_IW47("Total")
-    
-    #Proceso en Redis
     
     Process_Status_Data_Indicadores = RedisDockers.get('Process_Status_Data_Indicadores')
     print(Process_Status_Data_Indicadores)
@@ -1250,7 +1312,7 @@ async def Process_PlanMensual (type: Optional[str]=None):
     if type is None:
         print("Obteniendo Mensual iwbase")
         CursorIW37nBaseMensual = db.iw37nbaseMes.find({
-            "Semana": "18",
+            "Semana": "22",
             "Anho": str(Anho)
         })
     else:
@@ -1319,7 +1381,6 @@ async def Process_PlanMensual (type: Optional[str]=None):
     df_IW37nBase.rename(columns={'Trbjo real':'Trabajo Real'}, inplace=True)
     df_IW37nBase.rename(columns={'StatUsu':'Status Usuario'}, inplace=True)
     df_IW37nBase.rename(columns={'Revisión_y':'Revisión'}, inplace=True)
-
 
     return df_IW37nBase
 
