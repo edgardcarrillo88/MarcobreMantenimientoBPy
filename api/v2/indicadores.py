@@ -46,7 +46,7 @@ def get_current_datetime():
         Semana = current_week
         Anho = current_year
     #Semana = last_week #Borrar
-    Semana = "22" #Borrar esto es para el mensual
+    #Semana = "24" #Borrar esto es para el mensual
     print("Semana: ",Semana,"Anho: ",Anho, "Anho anterior: ",Anho-1)
     return current_date, Semana, Anho
     
@@ -229,7 +229,7 @@ async def Process_IW39 (PeriodoActual: Optional[str]=None):
     def MongoDB_Mensual():
         print("Obteniendo mensual IW39")
         CursorIW39 = db.iw39report.find({
-            "Semana": {"$in": [str(Semana), str(Semana-1), str(Semana-2), str(Semana-3)],},
+            "Semana": {"$in": [str(int(Semana)), str(int(Semana)-1), str(int(Semana)-2), str(int(Semana)-3)],},
             "Anho": str(Anho)
         })
         return CursorIW39
@@ -295,7 +295,7 @@ async def Process_IW37nReporte (PeriodoActual: Optional[str]=None):
     def MongoDB_Mensual():
         print("Obteniendo mensual IW37nReporte")
         CursorIW37nReporte = db.iw37nreport.find({
-            "Semana": {"$in": [str(Semana), str(Semana-1), str(Semana-2), str(Semana-3)],},
+            "Semana": {"$in": [str(int(Semana)), str(int(Semana)-1), str(int(Semana)-2), str(int(Semana)-3)],},
             "Anho": str(Anho)
         })
         return CursorIW37nReporte
@@ -370,7 +370,7 @@ async def Process_IW37nBase (PeriodoActual: Optional[str]=None):
     def MongoDB_Mensual():
         print("Obteniendo mensual IW37nBase")
         CursorIW37nBase = db.iw37n.find({
-            "Semana": {"$in": [str(Semana), str(Semana-1), str(Semana-2), str(Semana-3)],},
+            "Semana": {"$in": [str(Semana), str(int(Semana)-1), str(int(Semana)-2), str(int(Semana)-3)],},
             "Anho": str(Anho)
         })
         return CursorIW37nBase
@@ -526,7 +526,7 @@ async def Process_IW47 (PeriodoActual: Optional[str]=None):
     def MongoDB_Mensual():
         print("Obteniendo mensual IW47")
         CursorIW47 = db.iw47.find({
-            "Semana": {"$in": [str(Semana), str(Semana-1), str(Semana-2), str(Semana-3)],},
+            "Semana": {"$in": [str(Semana), str(int(Semana)-1), str(int(Semana)-2), str(int(Semana)-3)],},
             "Anho": str(Anho)
         })
         return CursorIW47
@@ -1035,6 +1035,7 @@ async def Process_Condiciones_2 ():
 
 @router.get("/backlog", tags=["Indicadores"])
 async def Process_Backlog (PeriodoActual: Optional[str]=None): #Process_Baklog
+
     df_result = []	
 
     Result_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
@@ -1100,8 +1101,21 @@ async def Process_Backlog (PeriodoActual: Optional[str]=None): #Process_Baklog
     df_TAG = pd.merge(df_TAG,Result_Criticidad[['TAG','Criticidad']],on='TAG',how='left')
     df_UT = pd.merge(df_UT,Result_Criticidad[['UT','Criticidad']],left_on='Ubic.técn.',right_on='UT',how='left')
     Result_IW37nReporte = pd.concat([df_TAG,df_UT])
-
+    
+    Result_IW37nReporte['Orden'] = Result_IW37nReporte['Orden'].astype(str)
+    Result_IW37nReporte['Semana'] = Result_IW37nReporte['Semana'].astype(str)
+    Result_IW37nReporte['Op.'] = Result_IW37nReporte['Op.'].astype(str)
+    print("Nº1:",len(Result_IW37nReporte))
+    Result_IW37nReporte = Result_IW37nReporte.drop_duplicates(subset=['Orden', 'Semana', 'Op.']) ##SE24: quitamos duplicados en el DF final
+    print("Nº2:",len(Result_IW37nReporte))
+    
+    # function_return_Streaming(Result_IW37nReporte,df_result)
+    # def generate():
+    #     for chunk in df_result:
+    #         yield from chunk
+    # return StreamingResponse(generate(), media_type='application/json')
     return Result_IW37nReporte
+
 
 @router.get("/GetAndProcessHHDisponibles", tags=["Indicadores"])
 async def Get_Process_HHDisponibles ():
@@ -1290,6 +1304,9 @@ async def BorrarRedis ():
     RedisDockers.delete('df_IW37nReporte')
     RedisDockers.delete('df_IW37nBase')
     RedisDockers.delete('df_IW47')
+    RedisDockers.delete('df_Backlog') ####SEM24
+    RedisDockers.delete('df_HHDisponibles') ####SEM24
+    RedisDockers.delete('df_Criticidad') ####SEM24
     return {
         "Message": "Oki Doki"
     }
