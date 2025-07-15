@@ -88,6 +88,8 @@ REDISPASSWORD = os.getenv("REDISPASSWORD")
 #Conectandose al servidor de redis, que entiendo esta en mi conteder de dockers
 RedisDockers = redis.Redis(host=REDISHOST, port=REDISPORT,username=REDISUSER,password=REDISPASSWORD, db=0)
 
+
+#PENDIENTE REVISAR LA GENERACIÓN DE LAS CURVAS REALES AJUSTADAS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 async def Linea_Base():
     All_Data_LineaBase = []
     print("Obteniendo datos de MongoDB LineaBase")
@@ -124,22 +126,24 @@ def Linea_Avance_General(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_A
     
     df_Real_0 = df_Real.groupby('Ejex')['hh'].sum().reset_index()
     df_Real_0["hh_real_cum"] = df_Real_0["hh"].cumsum()
+    df_Real_0.rename(columns={'hh':'hh_real'}, inplace=True)
     
     df_Real_Ajustada_0 = df_Real.groupby('Ejex')['hh'].sum().reset_index()
-    df_Real_Ajustada_0["hh_real_cum"] = df_Real_0["hh"].cumsum()
+    df_Real_Ajustada_0["hh_real_cum"] = df_Real_0["hh_real"].cumsum()
+    #df_Real_Ajustada_0.rename(columns={'hh':'hh_real'}, inplace=True) 
     
     result = Rango_Eje_X(df_LineaBase_0, df_Real_0, df_LineaBase_Ajustada_0, df_Real_Ajustada_0)
     
     #Uniendos los dataframes de linea base y linea real y renombrando las columnas
     df_LineaGeneral = result["df_ejeX_Normal"].merge(df_LineaBase_0, on="Ejex", how="left").merge(df_Real_0, on="Ejex", how="left")
-    df_LineaGeneral.rename(columns={'hh_x': 'hh_lb', 'hh cum_x': 'hh_lb_cum', 'hh_y': 'hh_real', 'hh cum_y': 'hh_real_cum'}, inplace=True)
+    #df_LineaGeneral.rename(columns={'hh_x': 'hh_lb', 'hh cum_x': 'hh_lb_cum', 'hh_y': 'hh_real', 'hh cum_y': 'hh_real_cum'}, inplace=True)
     df_LineaGeneral.fillna({"hh_lb": 0, "hh_real": 0, "hh_lb_cum": 0, "hh_real_cum": 0}, inplace=True)
     
     #Uniendos los dataframes de linea base ajustada y linea real y renombrando las columnas
     df_LineaGeneral_Ajustada = result["df_ejeX_Ajustada"].merge(df_LineaBase_Ajustada_0, on="Ejex", how="left").merge(df_Real_0, on="Ejex", how="left")
-    df_LineaGeneral_Ajustada.rename(columns={'hh': 'hh_real', 'hh cum': 'hh_real_cum'}, inplace=True)
+    #df_LineaGeneral_Ajustada.rename(columns={'hh': 'hh_real', 'hh cum': 'hh_real_cum'}, inplace=True)
     df_LineaGeneral_Ajustada.fillna({"hh_lb": 0, "hh_real": 0, "hh_lb_cum": 0, "hh_real_cum": 0}, inplace=True)
-    
+
     Avances = Calculo_Totales(df_LineaBase_0,df_Real_0,df_LineaBase_Ajustada_0,df_Real_Ajustada_0)
     
     return{
@@ -384,7 +388,6 @@ def Linea_Avance_Area_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, 
   
     df_LineaAreaContratista_Total = (result["df_ejeX_Normal"].merge(df_LineaBase_Area_Contratista, on=["Ejex", "Filtro01", "Filtro02"], how="left").merge(df_Real_Area_Contratista, on=["Ejex", "Filtro01", "Filtro02"], how="left"))
     df_LineaAreaContratista_Total.fillna(0, inplace=True)
-    print(df_LineaAreaContratista_Total)
     df_LineaAreaContratista_Total["hh_lb_cum"] = (df_LineaAreaContratista_Total.groupby(["Filtro01", "Filtro02"])["hh_lb"].cumsum())
     df_LineaAreaContratista_Total["hh_real_cum"] = (df_LineaAreaContratista_Total.groupby(["Filtro01", "Filtro02"])["hh_real"].cumsum())
     
@@ -600,9 +603,6 @@ async def Process_Curva_WhatIf (area, contratista):
     df_Real = result["df_Real"]
     df_Real_Ajustada = result["df_Real_Ajustada"]
     
-    print("area:", area)
-    print("contratista:", contratista)
-    
     if area:
         df_LineaBase = df_LineaBase[df_LineaBase['area'].isin(area)]
         df_LineaBase_Ajustada = df_LineaBase_Ajustada[df_LineaBase_Ajustada['area'].isin(area)]
@@ -647,33 +647,19 @@ async def Process_Curva_WhatIf (area, contratista):
     df_Real_Ajustada['Ejex'] = df_Real_Ajustada['Ejex'].dt.ceil('h')
     
     df_LineaBase = df_LineaBase.copy()
-    # df_Real = df_Real.copy()
-    # df_LineaBase_Ajustada = df_LineaBase_Ajustada.copy()
-    # df_Real_Ajustada = df_Real_Ajustada.copy()
     
     df_LineaBase["Contratista-Especialidad"] = df_LineaBase["contratista"] + "-" + df_LineaBase["especialidad"]
-    # df_Real["Contratista-Especialidad"] = df_Real["contratista"] + "-" + df_Real["especialidad"]
-    # df_LineaBase_Ajustada["Contratista-Especialidad"] = df_LineaBase_Ajustada["contratista"] + "-" + df_LineaBase_Ajustada["especialidad"]
-    # df_Real_Ajustada["Contratista-Especialidad"] = df_Real_Ajustada["contratista"] + "-" + df_Real_Ajustada["especialidad"]
 
     df_LineaBase.rename(columns={"Contratista-Especialidad":"Filtro01", "area":"Filtro02"}, inplace=True)
-    # df_LineaBase_Ajustada.rename(columns={"Contratista-Especialidad":"Filtro01", "area":"Filtro02"}, inplace=True)
-    # df_Real.rename(columns={"Contratista-Especialidad":"Filtro01", "area":"Filtro02"}, inplace=True)
-    # df_Real_Ajustada.rename(columns={"Contratista-Especialidad":"Filtro01", "area":"Filtro02"}, inplace=True)
     
     df_filtros_unicos = df_LineaBase[["Filtro01", "Filtro02"]].drop_duplicates().reset_index(drop=True)
 
-    
-    print("df_LineaBase:", df_LineaBase.columns)
-    print("df_LineaBase:", df_LineaBase)
     
     #result_Linea_WhatIf = Linea_Avance_WhatIf(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_WhatIf = Linea_Avance_General(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     
     result_Linea_WhatIf["df_LineaGeneral"] = pd.concat([result_Linea_WhatIf["df_LineaGeneral"],df_filtros_unicos],ignore_index=True)
     result_Linea_WhatIf["df_LineaGeneral_Ajustada"] = pd.concat([result_Linea_WhatIf["df_LineaGeneral_Ajustada"],df_filtros_unicos],ignore_index=True)
-    
-    print("result_Linea_WhatIf:",  result_Linea_WhatIf["df_LineaGeneral"])
     
 
     return {
