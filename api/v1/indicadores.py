@@ -43,7 +43,7 @@ def get_current_datetime():
     else:
         Semana = current_week
         Anho = current_year
-    #Semana = last_week #Borrar#####################################################################
+    Semana = last_week #Borrar#####################################################################
     return current_date, Semana, Anho
     
 

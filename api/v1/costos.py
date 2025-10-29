@@ -546,16 +546,21 @@ async def Update_Data_Compromisos_To_Redis():
         await id_to_string_process(CursorCompromisos,All_Data_Compromisos)
         df_Compromisos = pd.DataFrame(All_Data_Compromisos)
         
+        # columnas_compromisos = [
+        # "Planta", "Categoria", "Partida", "CategoriaActual", "Monto",
+        # "Proveedor", "TxtPedido", "OC", "Posicion", "Fecha",
+        # "SPConOC", "SPConOCPos","_id"
+        # ]
+        
         columnas_compromisos = [
         "Planta", "Categoria", "Partida", "CategoriaActual", "Monto",
-        "Proveedor", "TxtPedido", "OC", "Posicion", "Fecha",
-        "SPConOC", "SPConOCPos","_id"
+        "Proveedor", "TxtPedido", "OC", "Posicion", "Fecha","_id"
         ]
     
         #Manteniendo solo las columnas que quiero
         df_Compromisos_Procesado = df_Compromisos[columnas_compromisos]
         df_Compromisos_Procesado = df_Compromisos_Procesado[df_Compromisos_Procesado['CategoriaActual'].isin(['OC','SP'])]
-        df_Compromisos_Procesado = df_Compromisos_Procesado[df_Compromisos_Procesado['SPConOC'].isnull() | (df_Compromisos_Procesado['SPConOC'] == '')]
+        #df_Compromisos_Procesado = df_Compromisos_Procesado[df_Compromisos_Procesado['SPConOC'].isnull() | (df_Compromisos_Procesado['SPConOC'] == '')]
         # df_Compromisos_Procesado['Mes'] = pd.to_datetime(df_Compromisos_Procesado['Mes'].apply(lambda x: date(2025, x, 1)))
 
         

@@ -46,7 +46,7 @@ def get_current_datetime():
         Semana = current_week
         Anho = current_year
     #Semana = last_week #Borrar
-    #Semana = "24" #Borrar esto es para el mensual
+    #Semana = "31" #Borrar esto es para el mensual
     print("Semana: ",Semana,"Anho: ",Anho, "Anho anterior: ",Anho-1)
     return current_date, Semana, Anho
     
