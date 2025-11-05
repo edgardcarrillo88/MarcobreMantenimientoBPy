@@ -157,11 +157,6 @@ def Linea_Avance_General(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_A
     df_LineaGeneral["hh_real_cum"] = df_LineaGeneral["hh_real"].cumsum() ############################################
     #df_LineaGeneral.fillna({"hh_lb": 0, "hh_real": 0, "hh_lb_cum": 0, "hh_real_cum": 0}, inplace=True)
 
-    print("-------------Result----------------")
-    print(df_LineaGeneral.columns)
-    print(df_LineaGeneral)
-    print("max: ", df_LineaGeneral["hh_lb_cum"].max())
-    print("-------------Result----------------")
     
     #Uniendos los dataframes de linea base ajustada y linea real y renombrando las columnas
     df_LineaGeneral_Ajustada = result["df_ejeX_Ajustada"].merge(df_LineaBase_Ajustada_0, on="Ejex", how="left").merge(df_Real_0, on="Ejex", how="left")
@@ -174,13 +169,6 @@ def Linea_Avance_General(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_A
     df_Real_0["hh_real_cum"] = df_Real_0["hh_real"].cumsum()
     df_LineaBase_Ajustada_0["hh_lb_cum"] = df_LineaBase_Ajustada_0["hh_lb"].cumsum()
 
-
-    print("-------------------------")
-    print(df_LineaBase_0)
-    print(df_Real_0)
-    print(df_LineaBase_Ajustada_0)
-    print(df_Real_Ajustada_0)
-    print("-------------------------")
 
     Avances = Calculo_Totales(df_LineaBase_0,df_Real_0,df_LineaBase_Ajustada_0,df_Real_Ajustada_0)
     
