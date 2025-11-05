@@ -128,13 +128,15 @@ def Linea_Avance_General(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_A
     
     df_LineaBase_0 = df_LineaBase.groupby('Ejex')['hh_lb'].sum().reset_index()
     df_LineaBase_0["hh_lb_cum"] = df_LineaBase_0["hh_lb"].cumsum()
+
+
     
     df_LineaBase_Ajustada_0 = df_LineaBase_Ajustada.groupby('Ejex')['hh_lb'].sum().reset_index()
-    df_LineaBase_Ajustada_0["hh_lb_cum"] = df_LineaBase_Ajustada_0["hh_lb"].cumsum()
+    #df_LineaBase_Ajustada_0["hh_lb_cum"] = df_LineaBase_Ajustada_0["hh_lb"].cumsum() ####################################
     df_LineaBase_Ajustada_0.rename(columns={'hh':'hh_lb'}, inplace=True)
     
     df_Real_0 = df_Real.groupby('Ejex')['hh'].sum().reset_index()
-    df_Real_0["hh_real_cum"] = df_Real_0["hh"].cumsum()
+    #df_Real_0["hh_real_cum"] = df_Real_0["hh"].cumsum() ############################################
     df_Real_0.rename(columns={'hh':'hh_real'}, inplace=True)
     
     df_Real_Ajustada_0 = df_Real.groupby('Ejex')['hh'].sum().reset_index()
@@ -142,16 +144,43 @@ def Linea_Avance_General(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_A
     #df_Real_Ajustada_0.rename(columns={'hh':'hh_real'}, inplace=True) 
     
     result = Rango_Eje_X(df_LineaBase_0, df_Real_0, df_LineaBase_Ajustada_0, df_Real_Ajustada_0)
+
+
+
+    
     
     #Uniendos los dataframes de linea base y linea real y renombrando las columnas
     df_LineaGeneral = result["df_ejeX_Normal"].merge(df_LineaBase_0, on="Ejex", how="left").merge(df_Real_0, on="Ejex", how="left")
-    #df_LineaGeneral.rename(columns={'hh_x': 'hh_lb', 'hh cum_x': 'hh_lb_cum', 'hh_y': 'hh_real', 'hh cum_y': 'hh_real_cum'}, inplace=True)
-    df_LineaGeneral.fillna({"hh_lb": 0, "hh_real": 0, "hh_lb_cum": 0, "hh_real_cum": 0}, inplace=True)
+    df_LineaGeneral.fillna({"hh_lb": 0, "hh_real": 0}, inplace=True)
+
+    df_LineaGeneral["hh_lb_cum"] = df_LineaGeneral["hh_lb"].cumsum() ############################################
+    df_LineaGeneral["hh_real_cum"] = df_LineaGeneral["hh_real"].cumsum() ############################################
+    #df_LineaGeneral.fillna({"hh_lb": 0, "hh_real": 0, "hh_lb_cum": 0, "hh_real_cum": 0}, inplace=True)
+
+    print("-------------Result----------------")
+    print(df_LineaGeneral.columns)
+    print(df_LineaGeneral)
+    print("max: ", df_LineaGeneral["hh_lb_cum"].max())
+    print("-------------Result----------------")
     
     #Uniendos los dataframes de linea base ajustada y linea real y renombrando las columnas
     df_LineaGeneral_Ajustada = result["df_ejeX_Ajustada"].merge(df_LineaBase_Ajustada_0, on="Ejex", how="left").merge(df_Real_0, on="Ejex", how="left")
-    #df_LineaGeneral_Ajustada.rename(columns={'hh': 'hh_real', 'hh cum': 'hh_real_cum'}, inplace=True)
-    df_LineaGeneral_Ajustada.fillna({"hh_lb": 0, "hh_real": 0, "hh_lb_cum": 0, "hh_real_cum": 0}, inplace=True)
+    df_LineaGeneral_Ajustada.fillna({"hh_lb": 0, "hh_real": 0}, inplace=True)
+
+    df_LineaGeneral_Ajustada["hh_lb_cum"] = df_LineaGeneral_Ajustada["hh_lb"].cumsum() ############################################
+    df_LineaGeneral_Ajustada["hh_real_cum"] = df_LineaGeneral_Ajustada["hh_real"].cumsum() ############################################
+    #df_LineaGeneral_Ajustada.fillna({"hh_lb": 0, "hh_real": 0, "hh_lb_cum": 0, "hh_real_cum": 0}, inplace=True)
+
+    df_Real_0["hh_real_cum"] = df_Real_0["hh_real"].cumsum()
+    df_LineaBase_Ajustada_0["hh_lb_cum"] = df_LineaBase_Ajustada_0["hh_lb"].cumsum()
+
+
+    print("-------------------------")
+    print(df_LineaBase_0)
+    print(df_Real_0)
+    print(df_LineaBase_Ajustada_0)
+    print(df_Real_Ajustada_0)
+    print("-------------------------")
 
     Avances = Calculo_Totales(df_LineaBase_0,df_Real_0,df_LineaBase_Ajustada_0,df_Real_Ajustada_0)
     
@@ -168,12 +197,12 @@ def Rango_Eje_X (df_LineaBase_0, df_Real_0, df_LineaBase_Ajustada_0, df_Real_Aju
     #Aca determino la fecha mas temprana y mas tardia entre la linea base y la linea real
     start_date = min(df_LineaBase_0["Ejex"].min(), df_Real_0["Ejex"].min())
     end_date = max(df_LineaBase_0["Ejex"].max(), df_Real_0["Ejex"].max())
-    end_date = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca determino la fecha mas temprana y mas tardia entre la linea base ajustada y la linea real
     start_date2 = min(df_LineaBase_Ajustada_0["Ejex"].min(), df_Real_Ajustada_0["Ejex"].min())
     end_date2 = max(df_LineaBase_Ajustada_0["Ejex"].max(), df_Real_Ajustada_0["Ejex"].max())
-    end_date2 = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date2 = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca creo un rango de fechas con la fecha mas temprana y mas tardia de la curva regular con saltos de una hora
     ejeXnew = pd.date_range(start=start_date, end=end_date, freq="1h")
@@ -254,12 +283,12 @@ def Linea_Avance_Area(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajus
 def Rango_Eje_X_Area (df_LineaBase_Area, df_Real_Area, df_LineaBase_Area_Ajustada, df_Real_Area_Ajustada):
     start_date = min(df_LineaBase_Area["Ejex"].min(), df_Real_Area["Ejex"].min())
     end_date = max(df_LineaBase_Area["Ejex"].max(), df_Real_Area["Ejex"].max())
-    end_date = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca determino la fecha mas temprana y mas tardia entre la linea base ajustada y la linea real
     start_date2 = min(df_LineaBase_Area_Ajustada["Ejex"].min(), df_Real_Area["Ejex"].min())
     end_date2 = max(df_LineaBase_Area_Ajustada["Ejex"].max(), df_Real_Area["Ejex"].max())
-    end_date2 = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date2 = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca creo un rango de fechas con la fecha mas temprana y mas tardia de la curva regular con saltos de una hora
     ejeXNormal = pd.date_range(start=start_date, end=end_date, freq="1h")
@@ -297,11 +326,16 @@ def Linea_Avance_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Re
     df_Real_Contratista = df_Real.groupby(["Ejex","contratista"])["hh"].sum().reset_index() # Creo que debeería cambiar el HH por el EV
     #df_Real_Contratista = df_Real.groupby(["Ejex","contratista"])["EV"].sum().reset_index() # Creo que debeería cambiar el HH por el EV
 
+
+
+
     
     df_Real_Contratista.sort_values(["contratista", "Ejex"], inplace=True)
     df_Real_Contratista.rename(columns={"hh":"hh_real"}, inplace=True)
     #df_Real_Contratista.rename(columns={"EV":"hh_real"}, inplace=True)
     df_Real_Contratista.rename(columns={"contratista":"Filtro01"}, inplace=True)
+
+
     
     df_Real_Contratista_Ajustada = df_Real_Ajustada.groupby(["Ejex","contratista"])["hh"].sum().reset_index()
     df_Real_Contratista_Ajustada.sort_values(["contratista", "Ejex"], inplace=True)
@@ -325,6 +359,8 @@ def Linea_Avance_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Re
         .groupby("Filtro01")["hh_real"]
         .cumsum()
     )
+
+ 
         
     df_LineaContratista_Ajustada = (result["df_ejeX_Ajustada"].merge(df_LineaBase_Contratista_Ajustada, on=["Ejex", "Filtro01"], how="left").merge(df_Real_Contratista_Ajustada, on=["Ejex", "Filtro01"], how="left"))
     df_LineaContratista_Ajustada.fillna(0, inplace=True)
@@ -351,12 +387,12 @@ def Rango_Eje_X_Contratista (df_LineaBase_Contratista, df_Real_Contratista, df_L
     #Aca determino la fecha mas temprana y mas tardia entre la linea base REGULAR y la linea real
     start_date = min(df_LineaBase_Contratista["Ejex"].min(), df_Real_Contratista["Ejex"].min())
     end_date = max(df_LineaBase_Contratista["Ejex"].max(), df_Real_Contratista["Ejex"].max())
-    end_date = pd.to_datetime('2024-12-14')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca determino la fecha mas temprana y mas tardia entre la linea base AJUSTADA y la linea real
     start_date2 = min(df_LineaBase_Contratista_Ajustada["Ejex"].min(), df_Real_Contratista["Ejex"].min())
     end_date2 = max(df_LineaBase_Contratista_Ajustada["Ejex"].max(), df_Real_Contratista["Ejex"].max())
-    end_date2 = pd.to_datetime('2024-12-14')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date2 = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca creo un rango de fechas con la fecha mas temprana y mas tardia de la curva regular con saltos de una hora
     ejeXNormal = pd.date_range(start=start_date, end=end_date, freq="1h")
@@ -421,12 +457,12 @@ def Linea_Avance_Area_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, 
 def Rango_Eje_X_Area_Contratista (df_LineaBase_Area_Contratista, df_Real_Area_Contratista, df_LineaBase_Area_Contratista_Ajustada, df_Real_Area_Contratista_Ajustada):
     start_date = min(df_LineaBase_Area_Contratista["Ejex"].min(), df_Real_Area_Contratista["Ejex"].min())
     end_date = max(df_LineaBase_Area_Contratista["Ejex"].max(), df_Real_Area_Contratista["Ejex"].max())
-    end_date = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca determino la fecha mas temprana y mas tardia entre la linea base ajustada y la linea real
     start_date2 = min(df_LineaBase_Area_Contratista_Ajustada["Ejex"].min(), df_Real_Area_Contratista["Ejex"].min())
     end_date2 = max(df_LineaBase_Area_Contratista_Ajustada["Ejex"].max(), df_Real_Area_Contratista["Ejex"].max())
-    end_date2 = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date2 = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca creo un rango de fechas con la fecha mas temprana y mas tardia de la curva regular con saltos de una hora
     ejeXNormal = pd.date_range(start=start_date, end=end_date, freq="1h")
@@ -562,7 +598,7 @@ async def Process_Curvas_S ():
     
     df_Real = df_Real[df_Real['inicioreal'].notnull()].copy()
     #df_Real["TimeReference"] = pd.to_datetime('now')
-    df_Real["TimeReference"] = pd.to_datetime('2024-12-14')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    df_Real["TimeReference"] = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
     df_Real['TimeReference'] = df_Real['TimeReference'].dt.ceil('h')
     df_Real['inicioreal'] = df_Real['inicioreal'].dt.ceil('h')
@@ -587,9 +623,6 @@ async def Process_Curvas_S ():
     df_Real["hh"] = df_Real["EV"]
 
 
-
-
-    
     
     df_Real_Ajustada = df_Real_Ajustada[df_Real_Ajustada['inicioreal'].notnull()].copy()
     df_Real_Ajustada["TimeReference"] = pd.to_datetime('now')
