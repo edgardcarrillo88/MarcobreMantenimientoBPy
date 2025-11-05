@@ -100,16 +100,25 @@ async def Linea_Base():
     df_LineaBase = pd.DataFrame(All_Data_LineaBase)
     df_Real = pd.DataFrame(All_Data_LineaBase)
     
+
     print("Creando el data frame de Línea base")
     df_LineaBase.sort_values(by=['id'], inplace=True)
     df_LineaBase['inicioplan'] = df_LineaBase['inicioplan'].apply(lambda x: x.replace(microsecond=100000))
     df_LineaBase['finplan'] = df_LineaBase['finplan'].apply(lambda x: x.replace(microsecond=100000))
     df_LineaBase["DifHorasTime"] = (df_LineaBase["finplan"] - df_LineaBase["inicioplan"])
+    df_LineaBase["DifHorasHorasNoRounded"] = ((df_LineaBase["finplan"] - df_LineaBase["inicioplan"]).dt.total_seconds() / 3600)
     df_LineaBase["DifHorasHoras"] = ((df_LineaBase["finplan"] - df_LineaBase["inicioplan"]).dt.total_seconds() / 3600).apply(math.ceil)
+    df_LineaBase["hh"] = df_LineaBase["DifHorasHorasNoRounded"] / df_LineaBase["DifHorasHoras"]
+
+
     df_LineaBase['Ejex'] = df_LineaBase.apply(lambda row: [row['inicioplan'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
     df_LineaBase = df_LineaBase.explode('Ejex')
+
+
     df_LineaBase['Ejex'] = df_LineaBase['Ejex'].dt.ceil('h')
     df_LineaBase.rename(columns={"hh":"hh_lb"}, inplace=True)
+ 
+
     df_LineaBase_Ajustada = df_LineaBase[df_LineaBase['ActividadCancelada']=="No"]
     df_Real_Ajustada = df_Real[df_Real['ActividadCancelada']=="No"]
     
@@ -272,25 +281,30 @@ def Rango_Eje_X_Area (df_LineaBase_Area, df_Real_Area, df_LineaBase_Area_Ajustad
     }
 
 def Linea_Avance_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada):
+
+
+
     df_LineaBase_Contratista = df_LineaBase.groupby(["Ejex","contratista"])["hh_lb"].sum().reset_index()
+
+
     df_LineaBase_Contratista.sort_values(["contratista", "Ejex"], inplace=True)
-    #df_LineaBase_Contratista["hh_lb_cum"] = df_LineaBase_Contratista.groupby("contratista")["hh_lb"].cumsum()
     df_LineaBase_Contratista.rename(columns={"contratista":"Filtro01"}, inplace=True)
     
     df_LineaBase_Contratista_Ajustada = df_LineaBase_Ajustada.groupby(["Ejex","contratista"])["hh_lb"].sum().reset_index()
     df_LineaBase_Contratista_Ajustada.sort_values(["contratista", "Ejex"], inplace=True)
-    #df_LineaBase_Contratista_Ajustada["hh_lb_cum"] = df_LineaBase_Contratista_Ajustada.groupby("contratista")["hh_lb"].cumsum()
     df_LineaBase_Contratista_Ajustada.rename(columns={"contratista":"Filtro01"}, inplace=True)
     
-    df_Real_Contratista = df_Real.groupby(["Ejex","contratista"])["hh"].sum().reset_index()
+    df_Real_Contratista = df_Real.groupby(["Ejex","contratista"])["hh"].sum().reset_index() # Creo que debeería cambiar el HH por el EV
+    #df_Real_Contratista = df_Real.groupby(["Ejex","contratista"])["EV"].sum().reset_index() # Creo que debeería cambiar el HH por el EV
+
+    
     df_Real_Contratista.sort_values(["contratista", "Ejex"], inplace=True)
-    #df_Real_Contratista["hh_real_cum"] = df_Real_Contratista.groupby("contratista")["hh"].cumsum()
     df_Real_Contratista.rename(columns={"hh":"hh_real"}, inplace=True)
+    #df_Real_Contratista.rename(columns={"EV":"hh_real"}, inplace=True)
     df_Real_Contratista.rename(columns={"contratista":"Filtro01"}, inplace=True)
     
     df_Real_Contratista_Ajustada = df_Real_Ajustada.groupby(["Ejex","contratista"])["hh"].sum().reset_index()
     df_Real_Contratista_Ajustada.sort_values(["contratista", "Ejex"], inplace=True)
-    #df_Real_Contratista_Ajustada["hh_real_cum"] = df_Real_Contratista_Ajustada.groupby("contratista")["hh"].cumsum()
     df_Real_Contratista_Ajustada.rename(columns={"hh":"hh_real"}, inplace=True)
     df_Real_Contratista_Ajustada.rename(columns={"contratista":"Filtro01"}, inplace=True)
     
@@ -298,6 +312,7 @@ def Linea_Avance_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Re
     
     df_LineaContratista_Total = (result["df_ejeX_Normal"].merge(df_LineaBase_Contratista, on=["Ejex", "Filtro01"], how="left").merge(df_Real_Contratista, on=["Ejex", "Filtro01"], how="left"))
     df_LineaContratista_Total.fillna(0, inplace=True)
+
     
     df_LineaContratista_Total["hh_lb_cum"] = (
     df_LineaContratista_Total
@@ -331,29 +346,30 @@ def Linea_Avance_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Re
         "df_LineaContratista_Ajustada": df_LineaContratista_Ajustada
     }
 
-def Rango_Eje_X_Contratista (df_LineaBase_Contratista, df_Real_Contratista, df_LineaBase_Contratista_Ajustada, df_Real_Contratista_Ajustad):
+def Rango_Eje_X_Contratista (df_LineaBase_Contratista, df_Real_Contratista, df_LineaBase_Contratista_Ajustada, df_Real_Contratista_Ajustada):
+    
+    #Aca determino la fecha mas temprana y mas tardia entre la linea base REGULAR y la linea real
     start_date = min(df_LineaBase_Contratista["Ejex"].min(), df_Real_Contratista["Ejex"].min())
     end_date = max(df_LineaBase_Contratista["Ejex"].max(), df_Real_Contratista["Ejex"].max())
-    end_date = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date = pd.to_datetime('2024-12-14')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
-    #Aca determino la fecha mas temprana y mas tardia entre la linea base ajustada y la linea real
+    #Aca determino la fecha mas temprana y mas tardia entre la linea base AJUSTADA y la linea real
     start_date2 = min(df_LineaBase_Contratista_Ajustada["Ejex"].min(), df_Real_Contratista["Ejex"].min())
     end_date2 = max(df_LineaBase_Contratista_Ajustada["Ejex"].max(), df_Real_Contratista["Ejex"].max())
-    end_date2 = pd.to_datetime('2024-12-13')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    end_date2 = pd.to_datetime('2024-12-14')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     
     #Aca creo un rango de fechas con la fecha mas temprana y mas tardia de la curva regular con saltos de una hora
     ejeXNormal = pd.date_range(start=start_date, end=end_date, freq="1h")
-    #df_ejeXnew  = pd.DataFrame({"Ejex": ejeXnew})
     
     
     #Aca creo un rango de fechas con la fecha mas temprana y mas tardia de la curva ajustada con saltos de una hora
     ejeXnewAjustada = pd.date_range(start=start_date2, end=end_date2, freq="1h")
-    #df_ejeXnew2  = pd.DataFrame({"Ejex": ejeXnew2})
     
     contratistas = df_LineaBase_Contratista["Filtro01"].unique()
     
     df_ejeX_Normal = pd.MultiIndex.from_product([ejeXNormal, contratistas], names=["Ejex", "Filtro01"]).to_frame(index=False)
     df_ejeX_Ajustada = pd.MultiIndex.from_product([ejeXnewAjustada, contratistas], names=["Ejex", "Filtro01"]).to_frame(index=False)
+
     
     return {
         "df_ejeX_Normal":df_ejeX_Normal,
@@ -545,16 +561,34 @@ async def Process_Curvas_S ():
     df_Real_Ajustada = result["df_Real_Ajustada"]
     
     df_Real = df_Real[df_Real['inicioreal'].notnull()].copy()
-    df_Real["TimeReference"] = pd.to_datetime('now')
+    #df_Real["TimeReference"] = pd.to_datetime('now')
+    df_Real["TimeReference"] = pd.to_datetime('2024-12-14')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
     df_Real['TimeReference'] = df_Real['TimeReference'].dt.ceil('h')
     df_Real['inicioreal'] = df_Real['inicioreal'].dt.ceil('h')
+
+
+
     df_Real["finreal"] = df_Real["finreal"].fillna(df_Real["TimeReference"]).dt.ceil('h')
+
+    df_Real["DifHorasHorasNoRounded_Plan"] = ((df_Real["finplan"] - df_Real["inicioplan"]).dt.total_seconds() / 3600)
+
+    df_Real["DifHorasHoras_Plan"] = ((df_Real["finplan"] - df_Real["inicioplan"]).dt.total_seconds() / 3600).apply(math.ceil)
+    df_Real["DifHorasTimePlan"] = ((df_Real["finplan"].dt.ceil('h') - df_Real["inicioplan"].dt.ceil('h')).dt.total_seconds() / 3600).apply(math.ceil)
     df_Real["DifHorasTime"] = (df_Real["finreal"] - df_Real["inicioreal"])
     df_Real["DifHorasHoras"] = ((df_Real["finreal"] - df_Real["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil)
+
+    df_Real["hh"] = df_Real["DifHorasHorasNoRounded_Plan"] / df_Real["DifHorasHoras"]
+    
     df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
     df_Real = df_Real.explode('Ejex')
     df_Real['Ejex'] = df_Real['Ejex'].dt.ceil('h')
+    df_Real["EV"] = df_Real["hh"]*df_Real["avance"]/100
+    df_Real["hh"] = df_Real["EV"]
+
+
+
+
     
     
     df_Real_Ajustada = df_Real_Ajustada[df_Real_Ajustada['inicioreal'].notnull()].copy()
@@ -567,6 +601,7 @@ async def Process_Curvas_S ():
     df_Real_Ajustada['Ejex'] = df_Real_Ajustada.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
     df_Real_Ajustada = df_Real_Ajustada.explode('Ejex')
     df_Real_Ajustada['Ejex'] = df_Real_Ajustada['Ejex'].dt.ceil('h')
+
     
     result_Linea_General = Linea_Avance_General(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_Area = Linea_Avance_Area(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
