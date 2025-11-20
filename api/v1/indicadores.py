@@ -55,6 +55,7 @@ async def id_to_string_process(cursor, array):
         array.append(item)
     return array
 
+
 def function_return_Streaming(df, result_list):
     def generate():
         buffer = io.StringIO()
@@ -248,6 +249,7 @@ async def Process_IW39 (type: Optional[str]=None):
         "Orden-Semana",
         ]]
     return df_IW39
+
 
 async def Process_IW37nReporte (type: Optional[str]=None):
     All_Data_IW37nReporte = []
