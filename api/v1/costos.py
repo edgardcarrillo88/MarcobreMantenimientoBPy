@@ -556,7 +556,7 @@ async def Update_Data_Compromisos_To_Redis():
         "Planta", "Categoria", "Partida", "CategoriaActual", "Monto",
         "Proveedor", "TxtPedido", "OC", "Posicion", "Fecha","_id"
         ]
-    
+
         #Manteniendo solo las columnas que quiero
         df_Compromisos_Procesado = df_Compromisos[columnas_compromisos]
         df_Compromisos_Procesado = df_Compromisos_Procesado[df_Compromisos_Procesado['CategoriaActual'].isin(['OC','SP'])]

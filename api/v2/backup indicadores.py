@@ -45,7 +45,7 @@ def get_current_datetime():
     else:
         Semana = current_week
         Anho = current_year
-        Semana =  "46"
+        Semana =  "40"
     #Semana = "" #Borrar esto es para el mensual
     print("Semana: ",Semana,"Anho: ",Anho, "Anho anterior: ",Anho-1)
     return current_date, Semana, Anho
@@ -194,7 +194,6 @@ def Get_Data_IW29_From_Redis():
     df_IW29 = pickle.loads(pickled_IW29)
     function_return_Streaming(df_IW29,df_result)
     def generate():
-        
         for chunk in df_result:
             yield from chunk
     return StreamingResponse(generate(), media_type='application/json')
@@ -345,20 +344,6 @@ async def Process_IW37nReporte (PeriodoActual: Optional[str]=None):
     
     return df_IW37nReporte
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 async def Process_IW37nBase (PeriodoActual: Optional[str]=None):
     All_Data_IW37nBase = [] 
     current_date, Semana, Anho = get_current_datetime()
@@ -409,20 +394,7 @@ async def Process_IW37nBase (PeriodoActual: Optional[str]=None):
     #await id_to_string_process(CursorIW37nBase,All_Data_IW37nBase)
     await id_to_string_process(Result,All_Data_IW37nBase)
     df_IW37nBase = pd.DataFrame(All_Data_IW37nBase)
-    
-    
-    df_IW37nBase.rename(columns={
-        'Op_': 'Op.',
-        'Cl_': 'Cl.',
-        'Ubic_técn_': 'Ubic.técn.',
-        'Denomin_': 'Denomin.',
-        'Inic_extr_' : 'Inic.extr.',
-        'Fe_entrada' : 'Fe.entrada',
-        'Stat_sist_' : 'Stat.sist.',
-        'Inic_real' : 'Inic.real',
-    }, inplace=True)
-
-
+        
     df_IW37nBase["Orden-Semana"] = df_IW37nBase["Orden"].astype(str) + "-" + df_IW37nBase["Semana"].astype(str)
     df_IW37nBase["Inic.extr."] = pd.to_datetime(df_IW37nBase["Inic.extr."].str.replace(".", "/"), format="%d/%m/%Y").dt.date
     df_IW37nBase['Inic.extr.'] = df_IW37nBase['Inic.extr.'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
@@ -515,85 +487,6 @@ async def Process_IW37nBase_2 (PeriodoActual: Optional[str]=None):
     df_IW37nBase = pd.merge(df_IW37nBase, Result_Condiciones[['PtoTrbRes','Denominacion', 'AreaResponsable', 'Empresa', 'TipoContrato']], on='PtoTrbRes',how='left')
         
     return df_IW37nBase
-
-
-
-
-
-@router.get("/GetAndProcessIW37NN", tags=["Indicadores"])
-async def Process_IW37NN (PeriodoActual: Optional[str]=None):
-
-    All_Data_IW37 = []
-    df_result = []
-    current_year, Semana, Anho = get_current_datetime()
-    
-    def MongoDB_Anual():
-        print("Obteniendo anual IW47")
-        CursorIW47 = db.iw37n.find({
-            "Anho": str(Anho)
-        })
-        return CursorIW47
-        
-    def MongoDB_Mensual():
-        print("Obteniendo mensual IW47")
-        CursorIW47 = db.iw37n.find({
-            "Semana": {"$in": [str(Semana), str(int(Semana)-1), str(int(Semana)-2), str(int(Semana)-3)],},
-            "Anho": str(Anho)
-        })
-        return CursorIW47
-        
-    def MongoDB_Semanal():    
-        print("Obteniendo semanal IW47")
-        CursorIW47 = db.iw37n.find({
-            "Semana": str(Semana),
-            "Anho": str(Anho)   
-        })
-        return CursorIW47
-        
-    switch = {
-        "Anual": MongoDB_Anual,
-        "Mensual": MongoDB_Mensual,
-        "Semanal": MongoDB_Semanal
-    }
-    
-    Result = switch.get(PeriodoActual, MongoDB_Semanal)()
-    
-    
-    await id_to_string_process(Result,All_Data_IW37)
-        
-    df_IW37NN = pd.DataFrame(All_Data_IW37)
-
-    print(df_IW37NN)
-    
-    
-    function_return_Streaming(df_IW37NN,df_result)
-    def generate():
-        for chunk in df_result:
-            yield from chunk
-    return StreamingResponse(generate(), media_type='application/json')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 async def Process_IW47 (PeriodoActual: Optional[str]=None):
     All_Data_IW47 = []
@@ -700,7 +593,6 @@ async def Process_IW47 (PeriodoActual: Optional[str]=None):
 
     return df_IW47
 
-#@router.get("/GetAndProcessIW29", tags=["Indicadores"])
 async def Process_IW29 (type: Optional[str]=None):
     
     if type is None:
@@ -721,14 +613,13 @@ async def Process_IW29 (type: Optional[str]=None):
     await id_to_string_process(CursorIW29,All_Data_IW29)
 
     df_IW29 = pd.DataFrame(All_Data_IW29)
-    df_result = []  
         
     dataPrioridad = [
-    {"Prioridad": "1", "DescripcionPrioridad": "E:Emergencia"},
-    {"Prioridad": "2", "DescripcionPrioridad": "A:Alta"},
-    {"Prioridad": "3", "DescripcionPrioridad": "B:Media"},
-    {"Prioridad": "4", "DescripcionPrioridad": "C:Baja"},
-    {"Prioridad": "5", "DescripcionPrioridad": "D:Muy Baja"},
+    {"Prioridad": "1", "DescripcionPrioridad": "Emergencia"},
+    {"Prioridad": "2", "DescripcionPrioridad": "Alta"},
+    {"Prioridad": "3", "DescripcionPrioridad": "Media"},
+    {"Prioridad": "4", "DescripcionPrioridad": "Baja"},
+    {"Prioridad": "5", "DescripcionPrioridad": "Muy Baja"},
     ]
     
     dataPrioridadResponsable =[
@@ -821,7 +712,6 @@ async def Process_IW29 (type: Optional[str]=None):
         {"PrioridadResponsable": "E:Emergencia-Confiabilidad-Área 4000", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "E:Emergencia-Mantto Mecánico-Puerto", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "E:Emergencia-Mantto Mecánico-Área 4000", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
-        {"PrioridadResponsable": "E:Emergencia-Mantto Mecánico-Descarga Ácidos", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"}, ###
         {"PrioridadResponsable": "A:Alta-Confiabilidad-Puerto", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "A:Alta-Confiabilidad-Área 4000", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "A:Alta-Mantto Mecánico-Puerto", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
@@ -832,7 +722,6 @@ async def Process_IW29 (type: Optional[str]=None):
         {"PrioridadResponsable": "B:Media-Mantto Mecánico-Puerto", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "B:Media-Mantto Mecánico-Área 4000", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "B:Media-Mantto Mecánico-Potencia", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
-        {"PrioridadResponsable": "B:Media-Mantto Mecánico-Descarga Ácidos", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},  ####
         {"PrioridadResponsable": "C:Baja-Confiabilidad-Puerto", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "C:Baja-Confiabilidad-Área 4000", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "C:Baja-Confiabilidad-Potencia", "Responsables": "Planificador Mec. Puerto/Área 4000/Potencia"},
@@ -851,13 +740,11 @@ async def Process_IW29 (type: Optional[str]=None):
         {"PrioridadResponsable": "E:Emergencia-Mantto Potencia-Área 4000", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "A:Alta-Mantto E & I-Puerto", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "A:Alta-Mantto E & I-Área 4000", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
-        {"PrioridadResponsable": "A:Alta-Mantto E & I-Descarga Ácidos", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},  ######
         {"PrioridadResponsable": "A:Alta-Mantto Potencia-Puerto", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "A:Alta-Mantto Potencia-Área 4000", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "B:Media-Mantto E & I-Puerto", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "B:Media-Mantto E & I-Área 4000", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "B:Media-Mantto E & I-Potencia", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
-        {"PrioridadResponsable": "B:Media-Mantto E & I-Suministro Ácidos", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},   ######
         {"PrioridadResponsable": "B:Media-Mantto Potencia-Puerto", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "B:Media-Mantto Potencia-Área 4000", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
         {"PrioridadResponsable": "B:Media-Mantto Potencia-Potencia", "Responsables": "Planificador E&I Puerto/Área 4000/Potencia"},
@@ -876,23 +763,17 @@ async def Process_IW29 (type: Optional[str]=None):
     ]
 
     dataStatusSistemaAvisos = [
-        {"Stat.sist.": "MDIF", "DescripcionStatus": "Avisos Abiertos"},
-        {"Stat.sist.": "MEAB", "DescripcionStatus": "Avisos Abiertos"},
-        {"Stat.sist.": "MECE", "DescripcionStatus": "Avisos Rechazados"},
-        {"Stat.sist.": "MECE MIMP ORAS", "DescripcionStatus": "Avisos Ejecutados (OT cerrada)"},
-        {"Stat.sist.": "MECE ORAS", "DescripcionStatus": "Avisos Ejecutados (OT cerrada)"},
-        {"Stat.sist.": "MECE ORAS PTBO", "DescripcionStatus": "Avisos Ejecutados (OT cerrada)"},
-        {"Stat.sist.": "AUOK MECE ORAS", "DescripcionStatus": "Avisos Ejecutados (OT cerrada)"},
-        {"Stat.sist.": "MECE PTBO", "DescripcionStatus": "Avisos Rechazados"},
-        {"Stat.sist.": "METR", "DescripcionStatus": "Avisos Aprobados (Liberado)"},
-        {"Stat.sist.": "AUOK METR", "DescripcionStatus": "Avisos Aprobados (Liberado)"},
-        {"Stat.sist.": "METR MIMP ORAS", "DescripcionStatus": "Avisos Tratados (Con OT)"},
-        {"Stat.sist.": "METR ORAS PREI", "DescripcionStatus": "Avisos Tratados (Con OT)"},
-        {"Stat.sist.": "AUOK METR ORAS", "DescripcionStatus": "Avisos Tratados (Con OT)"},
-        {"Stat.sist.": "METR ORAS", "DescripcionStatus": "Avisos Tratados (Con OT)"},
-        {"Stat.sist.": "AURE MECE", "DescripcionStatus": "Avisos Rechazados"},
-        {"Stat.sist.": "AURE MECE ORAS", "DescripcionStatus": "Avisos Rechazados"},
-        {"Stat.sist.": "AUTO MEAB", "DescripcionStatus": "Avisos Abiertos"},
+        {"Stat.sist.": "MDIF", "DescripcionStatus": "4. Avisos Abiertos"},
+        {"Stat.sist.": "MEAB", "DescripcionStatus": "4. Avisos Abiertos"},
+        {"Stat.sist.": "MECE", "DescripcionStatus": "5. Avisos Rechazados"},
+        {"Stat.sist.": "MECE MIMP ORAS", "DescripcionStatus": "1. Avisos Ejecutados (OT cerrada)"},
+        {"Stat.sist.": "MECE ORAS", "DescripcionStatus": "1. Avisos Ejecutados (OT cerrada)"},
+        {"Stat.sist.": "MECE ORAS PTBO", "DescripcionStatus": "1. Avisos Ejecutados (OT cerrada)"},
+        {"Stat.sist.": "MECE PTBO", "DescripcionStatus": "5. Avisos Rechazados"},
+        {"Stat.sist.": "METR", "DescripcionStatus": "3. Avisos Aprobados (Liberado)"},
+        {"Stat.sist.": "METR MIMP ORAS", "DescripcionStatus": "2. Avisos Tratados (Con OT)"},
+        {"Stat.sist.": "METR ORAS PREI", "DescripcionStatus": "2. Avisos Tratados (Con OT)"},
+        {"Stat.sist.": "METR ORAS", "DescripcionStatus": "2. Avisos Tratados (Con OT)"},
     ]
     
     dataResponsablePlaneamiento = [
@@ -934,43 +815,26 @@ async def Process_IW29 (type: Optional[str]=None):
     df_dataStatusSistemaAvisos = pd.DataFrame(dataStatusSistemaAvisos)
     df_dataResponsablePlaneamiento = pd.DataFrame(dataResponsablePlaneamiento)
     df_dataResponsableEjecucionAvisos = pd.DataFrame(dataResponsableEjecucionAvisos)
-    df_Condiciones = await Process_Condiciones_2()
+    df_Condiciones = await Process_Condiciones()
 
     print("N1")
     print(df_IW29)
 
     df_IW29["Creado el"] = pd.to_datetime(df_IW29["Creado el"].str.replace(".", "/"), format="%d/%m/%Y").dt.date
     df_IW29['Creado el'] = df_IW29['Creado el'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
-    df_IW29 = df_IW29[df_IW29["Cl."] != "Z3"] #Validar si solo se elimina Z3
+    df_IW29 = df_IW29[df_IW29["Cl."] != "Z3"]
     df_IW29.rename(columns={'P':'Prioridad'}, inplace=True)
     df_IW29 = pd.merge(df_IW29,df_Prioridad, on='Prioridad',how='left')
-    df_IW29 = pd.merge(df_IW29, df_Condiciones[['PtoTrbRes','AreaResponsable']], on='PtoTrbRes',how='left')
 
     #Cambio por Área
 
     df_IW29["UT"] = df_IW29["Ubicac.técnica"].str[:13].str.strip()
-    df_IW29["Concatenacion"] = df_IW29["Ubicac.técnica"].str.cat(df_IW29["PtoTrbRes"], sep="-")
-    df_IW29["Concat"] = df_IW29["UT"].str.cat(df_IW29["PtoTrbRes"], sep="-")
-    df_IW29 = pd.merge(df_IW29,df_Condiciones[['Concatenacion','Area', 'SubArea']], on='Concatenacion',how='left')
-    df_IW29['Vacio'] = df_IW29.apply(lambda row: 'Si' if pd.isnull(row['Area']) and pd.isnull(row['SubArea']) else 'No', axis=1)
-
-    #merge con condicional
-    df_vacios = df_IW29[df_IW29['Area'].isnull() | df_IW29['SubArea'].isnull()]
-    result_unico = df_Condiciones.drop_duplicates(subset='Concat', keep='first')
-    df_actualizar = pd.merge(df_vacios,result_unico[['Concat', 'Area', 'SubArea']],on='Concat', how='left',suffixes=('', '_nuevo'))
-
-    df_actualizar['Area'] = df_actualizar.apply(lambda row: row['Area_nuevo'] if pd.isnull(row['Area']) else row['Area'], axis=1)
-    df_actualizar['SubArea'] = df_actualizar.apply(lambda row: row['SubArea_nuevo'] if pd.isnull(row['SubArea']) else row['SubArea'], axis=1)
-    df_actualizar = df_actualizar.drop(columns=['Area_nuevo', 'SubArea_nuevo'])
-
-    #Elimo en la principal los Area y subarea vacios
-    df_IW29 = df_IW29.dropna(subset=['Area', 'SubArea'])
-    df_IW29 = pd.concat([df_IW29, df_actualizar])
-    df_IW29 = df_IW29.drop_duplicates()
+    df_IW29 = pd.merge(df_IW29,df_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
     
-    # #Condiciones
-    #df_Condiciones.rename(columns={'Ptotrabajo':'PtoTrbRes'}, inplace=True)
-    #df_IW29 = pd.merge(df_IW29,df_Condiciones[['PtoTrbRes', 'AreaResponsable']], on='PtoTrbRes',how='left')
+    #Condiciones
+
+    df_Condiciones.rename(columns={'Ptotrabajo':'PtoTrbRes'}, inplace=True)
+    df_IW29 = pd.merge(df_IW29,df_Condiciones[['PtoTrbRes', 'AreaResponsable']], on='PtoTrbRes',how='left')
     df_IW29["PrioridadResponsable"] = df_IW29["DescripcionPrioridad"].astype(str) + "-" + df_IW29["AreaResponsable"].astype(str) + "-" + df_IW29["SubArea"].astype(str)
     df_IW29 = pd.merge(df_IW29,df_dataPrioridadResponsable[['PrioridadResponsable','Responsables']], on='PrioridadResponsable',how='left')
     df_IW29 = pd.merge(df_IW29,df_dataStatusSistemaAvisos[['Stat.sist.','DescripcionStatus']], on='Stat.sist.',how='left')
@@ -981,12 +845,6 @@ async def Process_IW29 (type: Optional[str]=None):
     df_IW29 = df_IW29.drop(columns=["Fecha"])
     df_IW29.rename(columns={'Creado el':'Fecha'}, inplace=True)
     
-    # function_return_Streaming(df_IW29,df_result)
-    # def generate():
-    #     for chunk in df_result:
-    #         yield from chunk
-    # return StreamingResponse(generate(), media_type='application/json')
-
     return df_IW29
 
 
@@ -1118,30 +976,26 @@ async def Get_Process_IW29 ():
 @router.get("/GetAndProcessIW37nBase_3", tags=["Indicadores"])
 async def Process_IW37nBase_3(PeriodoActual: Optional[str]=None):
 
-    df_result = []
     df_IW37nBase = await Process_IW37nBase(PeriodoActual)
     Result_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
     Result_Condiciones = await Process_Condiciones_2()
     Result_IW39 = await Process_IW39 (PeriodoActual)
 
     Result_IW39 = Result_IW39[["Status del sistema","Orden-Semana"]]
-    print(Result_IW39)
     df_IW37nBase = pd.merge(df_IW37nBase, Result_IW39, on='Orden-Semana',how='left')
     df_IW37nBase.rename(columns={'Status del sistema':'Status Sistema Reportado'}, inplace=True)
 
-    Result_IW37nReporte = Result_IW37nReporte[["Trbjo real","StatUsu","Orden-Semana","Op."]]
-    df_IW37nBase = pd.merge(df_IW37nBase, Result_IW37nReporte, on=['Orden-Semana', 'Op.'],how='left')
+    Result_IW37nReporte = Result_IW37nReporte[["Trbjo real","StatUsu","Orden-Semana"]]
+    df_IW37nBase = pd.merge(df_IW37nBase, Result_IW37nReporte, on='Orden-Semana',how='left')
     df_IW37nBase.rename(columns={'Trbjo real_x':'Trbjo real'}, inplace=True)
     df_IW37nBase.rename(columns={'StatUsu_x':'StatUsu'}, inplace=True)
     df_IW37nBase.rename(columns={'Trbjo real_y':'Trabajo Real'}, inplace=True)
-    df_IW37nBase.rename(columns={'StatUsu_y':'Status Usuario Reportado'}, inplace=True)
+    df_IW37nBase.rename(columns={'StatUsu_y':'Status Usuario'}, inplace=True)
 
     df_IW37nBase = pd.merge(df_IW37nBase, Result_Condiciones[['PtoTrbRes','Denominacion', 'AreaResponsable', 'Empresa', 'TipoContrato']], on='PtoTrbRes',how='left')
-    df_IW37nBase['Status Sistema Reportado'] = df_IW37nBase['Status Sistema Reportado'].str[:9].str.strip().str.upper()
+    df_IW37nBase['Status Sistema Reportado'] = df_IW37nBase['Status Sistema Reportado'].str[:9]
     Result_Condiciones.rename(columns={'StatusSistema':'Status Sistema Reportado'}, inplace=True)
-    Result_Condiciones['Status Sistema Reportado'] = Result_Condiciones['Status Sistema Reportado'].str.strip().str.upper()
     df_IW37nBase = pd.merge(df_IW37nBase, Result_Condiciones[['Status Sistema Reportado','StatusKPI']], on='Status Sistema Reportado',how='left')
-    df_IW37nBase['StatusKPI'] = df_IW37nBase['StatusKPI'].fillna('Pendiente de cierre')
     df_IW37nBase["OTCerradas"] =  np.where(df_IW37nBase["StatusKPI"] == "Cerrado", df_IW37nBase["Orden"], 0)
     
     #Eliminando Mina
@@ -1168,13 +1022,6 @@ async def Process_IW37nBase_3(PeriodoActual: Optional[str]=None):
     df_IW37nBase = df_IW37nBase.dropna(subset=['Area', 'SubArea'])
     df_IW37nBase = pd.concat([df_IW37nBase, df_actualizar])
     df_IW37nBase = df_IW37nBase.drop_duplicates()
-
-
-    #function_return_Streaming(df_IW37nBase,df_result)
-    #def generate():
-    #    for chunk in df_result:
-    #        yield from chunk
-    #return StreamingResponse(generate(), media_type='application/json')
 
     return df_IW37nBase
 
