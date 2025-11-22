@@ -4,6 +4,7 @@ from api.v1.costos import router as v1_router
 from api.v1.indicadores import router as v2_router
 from api.v2.indicadores import router as v201_router
 from api.v1.paradadeplanta import router as v3_router
+from api.v1.metalurgia import router as v4_router
 
 app = FastAPI()
 
@@ -24,4 +25,5 @@ app.include_router(v1_router,prefix="/api/v1/costos", tags=["Costos"])
 #app.include_router(v2_router,prefix="/api/v1/indicadores", tags=["Indicadores"])
 app.include_router(v201_router,prefix="/api/v2/indicadores", tags=["Indicadores"])
 app.include_router(v3_router,prefix="/api/v1/ParadaDePlanta", tags=["Parada de Planta"])
+app.include_router(v4_router,prefix="/api/v1/Metalurgia", tags=["Metalurgia"])
 

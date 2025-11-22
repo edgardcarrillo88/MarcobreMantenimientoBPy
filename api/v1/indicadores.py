@@ -43,7 +43,7 @@ def get_current_datetime():
     else:
         Semana = current_week
         Anho = current_year
-    #Semana = last_week #Borrar#####################################################################
+    Semana = last_week #Borrar#####################################################################
     return current_date, Semana, Anho
     
 
@@ -54,6 +54,7 @@ async def id_to_string_process(cursor, array):
         item['_id'] = str(item['_id']) 
         array.append(item)
     return array
+
 
 def function_return_Streaming(df, result_list):
     def generate():
@@ -248,6 +249,7 @@ async def Process_IW39 (type: Optional[str]=None):
         "Orden-Semana",
         ]]
     return df_IW39
+
 
 async def Process_IW37nReporte (type: Optional[str]=None):
     All_Data_IW37nReporte = []

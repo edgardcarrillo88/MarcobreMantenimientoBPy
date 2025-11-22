@@ -546,12 +546,12 @@ async def Update_Data_Compromisos_To_Redis():
         await id_to_string_process(CursorCompromisos,All_Data_Compromisos)
         df_Compromisos = pd.DataFrame(All_Data_Compromisos)
         
-        #columnas_compromisos = [
+        # columnas_compromisos = [
         # "Planta", "Categoria", "Partida", "CategoriaActual", "Monto",
         # "Proveedor", "TxtPedido", "OC", "Posicion", "Fecha",
         # "SPConOC", "SPConOCPos","_id"
         # ]
-
+        
         columnas_compromisos = [
         "Planta", "Categoria", "Partida", "CategoriaActual", "Monto",
         "Proveedor", "TxtPedido", "OC", "Posicion", "Fecha","_id"
