@@ -569,6 +569,118 @@ def Calculo_Totales (df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajust
         "AvanceAjustado": AvanceRealAjustado
     }
 
+def Linea_Avance_RC(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada):
+    
+    df_LineaBase = df_LineaBase[df_LineaBase['rutacritica']=="Si"]
+    df_LineaBase_0 = df_LineaBase.groupby('Ejex')['hh_lb'].sum().reset_index()
+    df_LineaBase_0["hh_lb_cum"] = df_LineaBase_0["hh_lb"].cumsum()
+
+    df_LineaBase_Ajustada_0 = df_LineaBase_Ajustada.groupby('Ejex')['hh_lb'].sum().reset_index()
+    #df_LineaBase_Ajustada_0["hh_lb_cum"] = df_LineaBase_Ajustada_0["hh_lb"].cumsum() ####################################
+    df_LineaBase_Ajustada_0.rename(columns={'hh':'hh_lb'}, inplace=True)
+    
+    df_Real = df_Real[df_Real['rutacritica']=="Si"]
+    df_Real_0 = df_Real.groupby('Ejex')['hh'].sum().reset_index()
+    #df_Real_0["hh_real_cum"] = df_Real_0["hh"].cumsum() ############################################
+    df_Real_0.rename(columns={'hh':'hh_real'}, inplace=True)
+    
+    df_Real_Ajustada_0 = df_Real.groupby('Ejex')['hh'].sum().reset_index()
+    df_Real_Ajustada_0["hh_real_cum"] = df_Real_0["hh_real"].cumsum()
+    #df_Real_Ajustada_0.rename(columns={'hh':'hh_real'}, inplace=True) 
+    
+    result = Rango_Eje_X(df_LineaBase_0, df_Real_0, df_LineaBase_Ajustada_0, df_Real_Ajustada_0)
+    
+    #Uniendos los dataframes de linea base y linea real y renombrando las columnas
+    df_LineaGeneral = result["df_ejeX_Normal"].merge(df_LineaBase_0, on="Ejex", how="left").merge(df_Real_0, on="Ejex", how="left")
+    df_LineaGeneral.fillna({"hh_lb": 0, "hh_real": 0}, inplace=True)
+
+    df_LineaGeneral["hh_lb_cum"] = df_LineaGeneral["hh_lb"].cumsum() ############################################
+    df_LineaGeneral["hh_real_cum"] = df_LineaGeneral["hh_real"].cumsum() ############################################
+    #df_LineaGeneral.fillna({"hh_lb": 0, "hh_real": 0, "hh_lb_cum": 0, "hh_real_cum": 0}, inplace=True)
+
+    #Uniendos los dataframes de linea base ajustada y linea real y renombrando las columnas
+    df_LineaGeneral_Ajustada = result["df_ejeX_Ajustada"].merge(df_LineaBase_Ajustada_0, on="Ejex", how="left").merge(df_Real_0, on="Ejex", how="left")
+    df_LineaGeneral_Ajustada.fillna({"hh_lb": 0, "hh_real": 0}, inplace=True)
+
+    df_LineaGeneral_Ajustada["hh_lb_cum"] = df_LineaGeneral_Ajustada["hh_lb"].cumsum() ############################################
+    df_LineaGeneral_Ajustada["hh_real_cum"] = df_LineaGeneral_Ajustada["hh_real"].cumsum() ############################################
+    #df_LineaGeneral_Ajustada.fillna({"hh_lb": 0, "hh_real": 0, "hh_lb_cum": 0, "hh_real_cum": 0}, inplace=True)
+
+    df_Real_0["hh_real_cum"] = df_Real_0["hh_real"].cumsum()
+    df_LineaBase_Ajustada_0["hh_lb_cum"] = df_LineaBase_Ajustada_0["hh_lb"].cumsum()
+
+    #Avances = Calculo_Totales(df_LineaBase_0,df_Real_0,df_LineaBase_Ajustada_0,df_Real_Ajustada_0)
+    
+    return{
+        "df_LineaRC_Total": df_LineaGeneral,
+        "df_LineaRC_Ajustada": df_LineaGeneral_Ajustada,
+    }
+
+def Linea_Avance_BloqueRC(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada):
+    print("Creando el dataframe de curva base area ajustada")
+
+    df_LineaBase_Ajustada = df_LineaBase_Ajustada[df_LineaBase_Ajustada["BloqueRC"].notna()]
+    df_LineaBase_Area = df_LineaBase.groupby(["Ejex","BloqueRC"])["hh_lb"].sum().reset_index()
+    df_LineaBase_Area.sort_values(["BloqueRC", "Ejex"], inplace=True)
+    df_LineaBase_Area.rename(columns={"BloqueRC":"Filtro01"}, inplace=True)
+    
+    df_LineaBase_Area_Ajustada = df_LineaBase_Ajustada.groupby(["Ejex","BloqueRC"])["hh_lb"].sum().reset_index()
+    df_LineaBase_Area_Ajustada.sort_values(["BloqueRC", "Ejex"], inplace=True)
+    df_LineaBase_Area_Ajustada.rename(columns={"BloqueRC":"Filtro01"}, inplace=True)
+    
+
+    df_Real = df_Real[df_Real["BloqueRC"].notna()]
+    df_Real_Area = df_Real.groupby(["Ejex","BloqueRC"])["hh"].sum().reset_index()
+    df_Real_Area.sort_values(["BloqueRC", "Ejex"], inplace=True)
+    df_Real_Area.rename(columns={"hh":"hh_real"}, inplace=True)
+    df_Real_Area.rename(columns={"BloqueRC":"Filtro01"}, inplace=True)
+    
+    df_Real_Area_Ajustada = df_Real_Ajustada.groupby(["Ejex","BloqueRC"])["hh"].sum().reset_index()
+    df_Real_Area_Ajustada.sort_values(["BloqueRC", "Ejex"], inplace=True)
+    df_Real_Area_Ajustada.rename(columns={"hh":"hh_real"}, inplace=True)
+    df_Real_Area_Ajustada.rename(columns={"BloqueRC":"Filtro01"}, inplace=True)
+    
+    result = Rango_Eje_X_Area(df_LineaBase_Area, df_Real_Area, df_LineaBase_Area_Ajustada, df_Real_Area_Ajustada)
+    
+        
+    df_LineaArea_Total = (result["df_ejeX_Normal"].merge(df_LineaBase_Area, on=["Ejex", "Filtro01"], how="left").merge(df_Real_Area, on=["Ejex", "Filtro01"], how="left"))
+    df_LineaArea_Total.fillna(0, inplace=True)
+    
+        
+    df_LineaArea_Total["hh_lb_cum"] = (
+    df_LineaArea_Total
+    .groupby("Filtro01")["hh_lb"]
+    .cumsum()
+    )
+
+    df_LineaArea_Total["hh_real_cum"] = (
+        df_LineaArea_Total
+        .groupby("Filtro01")["hh_real"]
+        .cumsum()
+    )
+    
+    df_LineaArea_Ajustada = (result["df_ejeX_Ajustada"].merge(df_LineaBase_Area_Ajustada, on=["Ejex", "Filtro01"], how="left").merge(df_Real_Area_Ajustada, on=["Ejex", "Filtro01"], how="left"))
+    df_LineaArea_Ajustada.fillna(0, inplace=True)
+    
+    df_LineaArea_Ajustada["hh_lb_cum"] = (
+    df_LineaArea_Ajustada
+    .groupby("Filtro01")["hh_lb"]
+    .cumsum()
+    )
+
+    df_LineaArea_Ajustada["hh_real_cum"] = (
+        df_LineaArea_Ajustada
+        .groupby("Filtro01")["hh_real"]
+        .cumsum()
+    )
+    
+    return {
+        "df_LineaBloqueRC_Total": df_LineaArea_Total,
+        "df_LineaBloqueRC_Ajustada": df_LineaArea_Ajustada
+    }
+
+
+
 async def Process_Curvas_S ():
 
     
@@ -579,44 +691,54 @@ async def Process_Curvas_S ():
     df_Real_Ajustada = result["df_Real_Ajustada"]
     
     df_Real = df_Real[df_Real['inicioreal'].notnull()].copy()
-    #df_Real["TimeReference"] = pd.to_datetime('now')
-    df_Real["TimeReference"] = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
-    df_Real['TimeReference'] = df_Real['TimeReference'].dt.ceil('h')
-    df_Real['inicioreal'] = df_Real['inicioreal'].dt.ceil('h')
+    if len(df_Real) >0: 
+        df_Real["TimeReference"] = pd.to_datetime('now', utc=True).tz_localize(None)
 
+        #df_Real["TimeReference"] = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
+        df_Real['TimeReference'] = df_Real['TimeReference'].dt.ceil('h')
 
-    df_Real["finreal"] = df_Real["finreal"].fillna(df_Real["TimeReference"]).dt.ceil('h')
-
-    df_Real["DifHorasHorasNoRounded_Plan"] = ((df_Real["finplan"] - df_Real["inicioplan"]).dt.total_seconds() / 3600)
-
-    df_Real["DifHorasHoras_Plan"] = ((df_Real["finplan"] - df_Real["inicioplan"]).dt.total_seconds() / 3600).apply(math.ceil)
-    df_Real["DifHorasTimePlan"] = ((df_Real["finplan"].dt.ceil('h') - df_Real["inicioplan"].dt.ceil('h')).dt.total_seconds() / 3600).apply(math.ceil)
-    df_Real["DifHorasTime"] = (df_Real["finreal"] - df_Real["inicioreal"])
-    df_Real["DifHorasHoras"] = ((df_Real["finreal"] - df_Real["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil)
-
-    df_Real["hh"] = df_Real["DifHorasHorasNoRounded_Plan"] / df_Real["DifHorasHoras"]
-    
-    df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
-    df_Real = df_Real.explode('Ejex')
-    df_Real['Ejex'] = df_Real['Ejex'].dt.ceil('h')
-    df_Real["EV"] = df_Real["hh"]*df_Real["avance"]/100
-    df_Real["hh"] = df_Real["EV"]
+        df_Real['inicioreal'] = df_Real['inicioreal'].dt.ceil('h')
 
 
-    
-    df_Real_Ajustada = df_Real_Ajustada[df_Real_Ajustada['inicioreal'].notnull()].copy()
-    df_Real_Ajustada["TimeReference"] = pd.to_datetime('now')
-    df_Real_Ajustada['TimeReference'] = df_Real_Ajustada['TimeReference'].dt.ceil('h')
-    df_Real_Ajustada['inicioreal'] = df_Real_Ajustada['inicioreal'].dt.ceil('h')
-    df_Real_Ajustada["finreal"] = df_Real_Ajustada["finreal"].fillna(df_Real_Ajustada["TimeReference"]).dt.ceil('h')
-    df_Real_Ajustada["DifHorasTime"] = (df_Real_Ajustada["finreal"] - df_Real_Ajustada["inicioreal"])
-    df_Real_Ajustada["DifHorasHoras"] = ((df_Real_Ajustada["finreal"] - df_Real_Ajustada["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil)
-    df_Real_Ajustada['Ejex'] = df_Real_Ajustada.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
-    df_Real_Ajustada = df_Real_Ajustada.explode('Ejex')
-    df_Real_Ajustada['Ejex'] = df_Real_Ajustada['Ejex'].dt.ceil('h')
+        df_Real["finreal"] = df_Real["finreal"].fillna(df_Real["TimeReference"]).dt.ceil('h')
 
+        df_Real["DifHorasHorasNoRounded_Plan"] = ((df_Real["finplan"] - df_Real["inicioplan"]).dt.total_seconds() / 3600)
+
+        df_Real["DifHorasHoras_Plan"] = ((df_Real["finplan"] - df_Real["inicioplan"]).dt.total_seconds() / 3600).apply(math.ceil)
+        df_Real["DifHorasTimePlan"] = ((df_Real["finplan"].dt.ceil('h') - df_Real["inicioplan"].dt.ceil('h')).dt.total_seconds() / 3600).apply(math.ceil)
+        df_Real["DifHorasTime"] = abs((df_Real["finreal"] - df_Real["inicioreal"]))
+        df_Real["DifHorasHoras"] = abs(((df_Real["finreal"] - df_Real["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil))
+
+        df_Real["hh"] = df_Real["DifHorasHorasNoRounded_Plan"] / df_Real["DifHorasHoras"]
+        
+        #df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
+        df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(0, row['DifHorasHoras'], -1)] if row['DifHorasHoras'] < 0 else [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'])],axis=1)
+        
+        df_Real = df_Real.explode('Ejex')
+        print("df_Real: ")
+        print(df_Real["inicioreal"])
+        print(df_Real)
+        df_Real['Ejex'] = df_Real['Ejex'].dt.ceil('h')
+        df_Real["EV"] = df_Real["hh"]*df_Real["avance"]/100
+        df_Real["hh"] = df_Real["EV"]
+
+
+        df_Real_Ajustada = df_Real_Ajustada[df_Real_Ajustada['inicioreal'].notnull()].copy()
+        df_Real_Ajustada["TimeReference"] = pd.to_datetime('now', utc=True).tz_localize(None)
+        df_Real_Ajustada['TimeReference'] = df_Real_Ajustada['TimeReference'].dt.ceil('h')
+        df_Real_Ajustada['inicioreal'] = df_Real_Ajustada['inicioreal'].dt.ceil('h')
+        df_Real_Ajustada["finreal"] = df_Real_Ajustada["finreal"].fillna(df_Real_Ajustada["TimeReference"]).dt.ceil('h')
+        df_Real_Ajustada["DifHorasTime"] = (df_Real_Ajustada["finreal"] - df_Real_Ajustada["inicioreal"])
+        df_Real_Ajustada["DifHorasHoras"] = ((df_Real_Ajustada["finreal"] - df_Real_Ajustada["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil)
+        #df_Real_Ajustada['Ejex'] = df_Real_Ajustada.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
+        df_Real_Ajustada['Ejex'] = df_Real_Ajustada.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(0, row['DifHorasHoras'], -1)] if row['DifHorasHoras'] < 0 else [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'])],axis=1)
+
+        df_Real_Ajustada = df_Real_Ajustada.explode('Ejex')
+        df_Real_Ajustada['Ejex'] = df_Real_Ajustada['Ejex'].dt.ceil('h')
+    else:
+        df_Real = pd.DataFrame()
     
     result_Linea_General = Linea_Avance_General(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_Area = Linea_Avance_Area(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
@@ -624,6 +746,9 @@ async def Process_Curvas_S ():
     result_Linea_Area_Contratista = Linea_Avance_Area_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_Especialidad_Contratista = Linea_Avance_Contratista_Especialidad(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_WhatIf = Linea_Avance_WhatIf(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
+    result_Linea_RC = Linea_Avance_RC(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
+    result_Linea_BloqueRC = Linea_Avance_BloqueRC(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
+
     
     
     
@@ -642,6 +767,12 @@ async def Process_Curvas_S ():
         
         "df_CurvaEspecialidadContratista_Total": result_Linea_Especialidad_Contratista["df_LineaEspecialidadContratista_Total"],
         "df_CurvaEspecialidadContratista_Ajustada": result_Linea_Especialidad_Contratista["df_LineaEspecialidadContratista_Ajustada"],
+
+        "df_CurvaRC_Total": result_Linea_RC["df_LineaRC_Total"],
+        "df_CurvaRC_Ajustada": result_Linea_RC["df_LineaRC_Ajustada"],
+        
+        "df_CurvaBloqueRC_Total": result_Linea_BloqueRC["df_LineaBloqueRC_Total"],
+        "df_CurvaBloqueRC_Ajustada": result_Linea_BloqueRC["df_LineaBloqueRC_Ajustada"],
     }
 
 async def Process_Curva_WhatIf (area, contratista):
@@ -673,26 +804,30 @@ async def Process_Curva_WhatIf (area, contratista):
         df_Real_Ajustada = df_Real_Ajustada[df_Real_Ajustada['FiltroConcatenado'].isin(contratista)]
     
     df_Real = df_Real[df_Real['inicioreal'].notnull()].copy()
-    df_Real["TimeReference"] = pd.to_datetime('now')
+    df_Real["TimeReference"] = pd.to_datetime('now', utc=True).tz_localize(None)
 
     df_Real['TimeReference'] = df_Real['TimeReference'].dt.ceil('h')
     df_Real['inicioreal'] = df_Real['inicioreal'].dt.ceil('h')
     df_Real["finreal"] = df_Real["finreal"].fillna(df_Real["TimeReference"]).dt.ceil('h')
-    df_Real["DifHorasTime"] = (df_Real["finreal"] - df_Real["inicioreal"])
-    df_Real["DifHorasHoras"] = ((df_Real["finreal"] - df_Real["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil)
-    df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
+    df_Real["DifHorasTime"] = abs(df_Real["finreal"] - df_Real["inicioreal"])
+    df_Real["DifHorasHoras"] = abs(((df_Real["finreal"] - df_Real["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil))
+    #df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
+    df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(0, row['DifHorasHoras'], -1)] if row['DifHorasHoras'] < 0 else [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'])],axis=1)
+
     df_Real = df_Real.explode('Ejex')
     df_Real['Ejex'] = df_Real['Ejex'].dt.ceil('h')
     
     
     df_Real_Ajustada = df_Real_Ajustada[df_Real_Ajustada['inicioreal'].notnull()].copy()
-    df_Real_Ajustada["TimeReference"] = pd.to_datetime('now')
+    df_Real_Ajustada["TimeReference"] = pd.to_datetime('now', utc=True).tz_localize(None)
     df_Real_Ajustada['TimeReference'] = df_Real_Ajustada['TimeReference'].dt.ceil('h')
     df_Real_Ajustada['inicioreal'] = df_Real_Ajustada['inicioreal'].dt.ceil('h')
     df_Real_Ajustada["finreal"] = df_Real_Ajustada["finreal"].fillna(df_Real_Ajustada["TimeReference"]).dt.ceil('h')
-    df_Real_Ajustada["DifHorasTime"] = (df_Real_Ajustada["finreal"] - df_Real_Ajustada["inicioreal"])
-    df_Real_Ajustada["DifHorasHoras"] = ((df_Real_Ajustada["finreal"] - df_Real_Ajustada["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil)
+    df_Real_Ajustada["DifHorasTime"] = abs((df_Real_Ajustada["finreal"] - df_Real_Ajustada["inicioreal"]))
+    df_Real_Ajustada["DifHorasHoras"] = abs(((df_Real_Ajustada["finreal"] - df_Real_Ajustada["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil))
     df_Real_Ajustada['Ejex'] = df_Real_Ajustada.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
+    df_Real_Ajustada['Ejex'] = df_Real_Ajustada.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(0, row['DifHorasHoras'], -1)] if row['DifHorasHoras'] < 0 else [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'])],axis=1)
+
     df_Real_Ajustada = df_Real_Ajustada.explode('Ejex')
     df_Real_Ajustada['Ejex'] = df_Real_Ajustada['Ejex'].dt.ceil('h')
     
@@ -749,9 +884,17 @@ async def Get_Process_BaseLine ():
             "General": df_processed["df_CurvaEspecialidadContratista_Total"],
             "Ajustada": df_processed["df_CurvaEspecialidadContratista_Ajustada"],
         },
-        "CurvaWhatIf": {
-            "General": df_processedWhatIf["df_WhatIf_Total"],
-            "Ajustada": df_processedWhatIf["df_WhatIf_Ajustada"],
+        # "CurvaWhatIf": {
+        #     "General": df_processedWhatIf["df_WhatIf_Total"],
+        #     "Ajustada": df_processedWhatIf["df_WhatIf_Ajustada"],
+        # },
+        "CurvaRC": {
+            "General": df_processed["df_CurvaRC_Total"],
+            "Ajustada": df_processed["df_CurvaRC_Ajustada"],
+        },
+        "CurvaBloqueRC": {
+            "General": df_processed["df_CurvaBloqueRC_Total"],
+            "Ajustada": df_processed["df_CurvaBloqueRC_Ajustada"],
         }
     }
     

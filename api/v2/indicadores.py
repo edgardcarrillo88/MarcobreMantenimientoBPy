@@ -45,8 +45,8 @@ def get_current_datetime():
     else:
         Semana = current_week
         Anho = current_year
-        Semana =  "46"
-    #Semana = "" #Borrar esto es para el mensual
+        #Semana =  "46"
+    Semana = "47" #Borrar esto es para el mensual
     print("Semana: ",Semana,"Anho: ",Anho, "Anho anterior: ",Anho-1)
     return current_date, Semana, Anho
     
@@ -347,34 +347,11 @@ async def Process_IW37nReporte (PeriodoActual: Optional[str]=None):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 async def Process_IW37nBase (PeriodoActual: Optional[str]=None):
     All_Data_IW37nBase = [] 
     current_date, Semana, Anho = get_current_datetime()
     
-    # if type is None:
-    #     print("Obteniendo semanal IW37nBase")
-    #     CursorIW37nBase = db.iw37n.find({
-    #         "Semana": str(Semana),
-    #         "Anho": str(Anho)
-    #     })
-    # else:
-    #     print("Obteniendo anual IW37nBase")
-    #     CursorIW37nBase = db.iw37n.find({
-    #         "Anho": str(Anho),
-    #     })
-    
+
     def MongoDB_Anual():
         print("Obteniendo anual IW37nBase")
         CursorIW37nBase = db.iw37n.find({
@@ -518,8 +495,6 @@ async def Process_IW37nBase_2 (PeriodoActual: Optional[str]=None):
 
 
 
-
-
 @router.get("/GetAndProcessIW37NN", tags=["Indicadores"])
 async def Process_IW37NN (PeriodoActual: Optional[str]=None):
 
@@ -576,51 +551,14 @@ async def Process_IW37NN (PeriodoActual: Optional[str]=None):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 async def Process_IW47 (PeriodoActual: Optional[str]=None):
     All_Data_IW47 = []
     current_year, Semana, Anho = get_current_datetime()
-    # if type is None:
-    #     print("Obteniendo semanal IW47")
-    #     CursorIW47 = db.iw47.find({
-    #         "Semana": str(Semana),
-    #         "Anho": str(Anho)
-    #     })
-    #     df_IW37nBase = await Process_IW37nBase()
-    #     df_IW37nReporte = await Process_IW37nReporte()
-    #     df_Condiciones = await Process_Condiciones()
-    #     df_IW39 = await Process_IW39()
-    # else:
-    #     print("Obteniendo anual IW47")
-    #     CursorIW47 = db.iw47.find({
-    #         "Anho": str(Anho)
-    #     })
-    #     df_IW37nBase = await Process_IW37nBase(type="Total")
-    #     df_IW37nReporte = await Process_IW37nReporte(type="Total")
-    #     df_Condiciones = await Process_Condiciones()
-    #     df_IW39 = await Process_IW39(type="Total")
+
         
     df_IW37nBase = await Process_IW37nBase(PeriodoActual)
     df_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
-    df_Condiciones = await Process_Condiciones()
+    df_Condiciones = await Process_Condiciones_2()
     df_IW39 = await Process_IW39(PeriodoActual)
     
     def MongoDB_Anual():
@@ -682,9 +620,13 @@ async def Process_IW47 (PeriodoActual: Optional[str]=None):
     
     df_Condiciones.rename(columns={'StatusSistema':'Status Sistema Reportado'}, inplace=True)
     
+
     df_IW47 = pd.merge(df_IW47,df_Condiciones[['Status Sistema Reportado','StatusKPI']], on='Status Sistema Reportado',how='left')
-    df_Condiciones.rename(columns={'Ptotrabajo':'PtoTrbRes'}, inplace=True)
+    df_IW47 = df_IW47.drop_duplicates()
+
     df_IW47 = pd.merge(df_IW47,df_Condiciones[['PtoTrbRes','Denominacion', 'AreaResponsable']], on='PtoTrbRes',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+
     df_IW47 = pd.merge(df_IW47,df_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
     df_IW47 = df_IW47.drop_duplicates()
     
@@ -700,7 +642,248 @@ async def Process_IW47 (PeriodoActual: Optional[str]=None):
 
     return df_IW47
 
-#@router.get("/GetAndProcessIW29", tags=["Indicadores"])
+
+async def Process_IW47_Plan (PeriodoActual: Optional[str]=None):
+    All_Data_IW47 = []
+    current_year, Semana, Anho = get_current_datetime()
+
+        
+    df_IW37nBase = await Process_IW37nBase(PeriodoActual)
+    df_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
+    df_Condiciones = await Process_Condiciones_2()
+    df_IW39 = await Process_IW39(PeriodoActual)
+    
+    def MongoDB_Anual():
+        print("Obteniendo anual IW47")
+        CursorIW47 = db.iw47.find({
+            "Anho": str(Anho)
+        })
+        return CursorIW47
+        
+    def MongoDB_Mensual():
+        print("Obteniendo mensual IW47")
+        CursorIW47 = db.iw47.find({
+            "Semana": {"$in": [str(Semana), str(int(Semana)-1), str(int(Semana)-2), str(int(Semana)-3)],},
+            "Anho": str(Anho)
+        })
+        return CursorIW47
+        
+    def MongoDB_Semanal():    
+        print("Obteniendo semanal IW47")
+        CursorIW47 = db.iw47.find({
+            "Semana": str(Semana),
+            "Anho": str(Anho)   
+        })
+        return CursorIW47
+        
+    switch = {
+        "Anual": MongoDB_Anual,
+        "Mensual": MongoDB_Mensual,
+        "Semanal": MongoDB_Semanal
+    }
+    
+    Result = switch.get(PeriodoActual, MongoDB_Semanal)()
+    
+
+    await id_to_string_process(Result,All_Data_IW47)
+        
+    df_IW47 = pd.DataFrame(All_Data_IW47)
+    df_IW47 = df_IW47.drop_duplicates()
+
+    df_IW47 = pd.merge(df_IW47,df_IW37nBase[['Orden','Revisión']], on='Orden',how='left')
+
+    df_IW47["RevisionIW47"] = "SEM" + df_IW47["Semana"].astype(str).str.zfill(2) + "-" + str(Anho)[-2:]
+    df_IW47["Condicional"] = np.where(df_IW47["Revisión"] == df_IW47["RevisionIW47"], 1, 0)
+    df_IW47 = df_IW47[df_IW47["Condicional"] == 1]
+
+
+    df_IW47 = df_IW47[["Orden","Op","Trbjo real","Nº pers.","FechaInicioReal","Semana"]]
+    df_IW47.drop_duplicates()
+
+    df_IW47["Trbjo real"] = (
+    df_IW47["Trbjo real"]
+    .astype(str)
+    .str.strip()
+    .str.replace(",", "")
+    .str.replace(r'(\d+\.?\d*)-', r'-\1', regex=True)
+    .astype(float)        
+    )
+
+    df_IW47.drop_duplicates(inplace=True)
+
+    print(df_IW47[df_IW47["Orden"]=="6677014"])
+    
+    
+    df_IW47 = df_IW47.groupby(['Orden',"Op","FechaInicioReal",'Semana'], as_index=False)['Trbjo real'].sum()
+
+    print(df_IW47[df_IW47["Orden"]=="6677014"])
+
+    df_IW47["FechaInicioReal"] = pd.to_datetime(df_IW47["FechaInicioReal"].str.replace(".", "/"), format="%d/%m/%Y").dt.date
+    df_IW47['FechaInicioReal'] = df_IW47['FechaInicioReal'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
+    
+    df_IW47["Orden-Semana"] = df_IW47["Orden"].astype(str) + "-" + df_IW47["Semana"].astype(str)
+    df_IW47 = pd.merge(df_IW47,df_IW39[["Orden-Semana","CpoClasif", "P", "PtoTrbRes", "Status del sistema", "StatUsu", "Texto breve", "Ubicación técnica"]], on='Orden-Semana',how='left')
+    df_IW47["RevisionIW47"] = "SEM" + df_IW47["Semana"].astype(str).str.zfill(2) + "-" + str(Anho)[-2:]
+
+    df_IW47.rename(columns={'P':'Prioridad'}, inplace=True)
+    df_IW47.rename(columns={'Status del sistema':'Status Sistema Reportado'}, inplace=True)
+    df_IW47["Status Sistema Reportado"] = df_IW47["Status Sistema Reportado"].str[:9].str.strip()
+    df_IW47["Status Sistema Reportado"] = df_IW47["Status Sistema Reportado"].str[:9].str.strip()
+    #df_IW47.drop(columns=["Condicional","Revisión"], inplace=True)
+    df_IW47.rename(columns={'RevisionIW47':'Revisión'}, inplace=True)   
+    df_IW47 = df_IW47.drop_duplicates()
+
+    df_IW47 = pd.merge(df_IW47,df_IW37nReporte[['Orden-Semana','Inic.extr.']], on='Orden-Semana',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+
+    df_IW47["UT"] = df_IW47["Ubicación técnica"].str[:13].str.strip()
+    
+    df_Condiciones.rename(columns={'StatusSistema':'Status Sistema Reportado'}, inplace=True)
+    
+    df_IW47 = pd.merge(df_IW47,df_Condiciones[['Status Sistema Reportado','StatusKPI']], on='Status Sistema Reportado',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+
+    df_IW47 = pd.merge(df_IW47,df_Condiciones[['PtoTrbRes','Denominacion', 'AreaResponsable']], on='PtoTrbRes',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+
+    df_IW47 = pd.merge(df_IW47,df_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+
+    df_IW47['Temp'] = df_IW47["Ubicación técnica"].fillna('').str.startswith('JP11-MI1').astype(int)
+    df_IW47_Plan = df_IW47[df_IW47['Temp'] == 0]
+
+    df_IW47_Plan.drop(columns=["Temp"], inplace=True)
+    df_IW47_Plan.rename(columns={'Inic.extr.':'InicioExtremo'}, inplace=True)
+
+    print(df_IW47[df_IW47["Orden"]=="6677014"])
+    
+    #df_IW47_Plan = df_IW47.drop_duplicates(subset=['Orden'])
+
+    #df_IW37nReporte['Trbjo real'] = pd.to_numeric(df_IW37nReporte['Trbjo real'], errors='coerce')
+    #df_IW37nReporte = df_IW37nReporte.groupby(['Orden-Semana'], as_index=False)['Trbjo real'].sum()
+    #df_IW47_Plan = pd.merge(df_IW47,df_IW37nReporte[['Orden-Semana','Trbjo real']], on='Orden-Semana',how='left')
+
+    return df_IW47_Plan
+
+
+async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
+    All_Data_IW47 = []
+    current_year, Semana, Anho = get_current_datetime()
+
+        
+    df_IW37nBase = await Process_IW37nBase(PeriodoActual)
+    df_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
+    df_Condiciones = await Process_Condiciones_2()
+    df_IW39 = await Process_IW39(PeriodoActual)
+    
+    def MongoDB_Anual():
+        print("Obteniendo anual IW47")
+        CursorIW47 = db.iw47.find({
+            "Anho": str(Anho)
+        })
+        return CursorIW47
+        
+    def MongoDB_Mensual():
+        print("Obteniendo mensual IW47")
+        CursorIW47 = db.iw47.find({
+            "Semana": {"$in": [str(Semana), str(int(Semana)-1), str(int(Semana)-2), str(int(Semana)-3)],},
+            "Anho": str(Anho)
+        })
+        return CursorIW47
+        
+    def MongoDB_Semanal():    
+        print("Obteniendo semanal IW47")
+        CursorIW47 = db.iw47.find({
+            "Semana": str(Semana),
+            "Anho": str(Anho)   
+        })
+        return CursorIW47
+        
+    switch = {
+        "Anual": MongoDB_Anual,
+        "Mensual": MongoDB_Mensual,
+        "Semanal": MongoDB_Semanal
+    }
+    
+    Result = switch.get(PeriodoActual, MongoDB_Semanal)()
+    
+
+    await id_to_string_process(Result,All_Data_IW47)
+        
+    df_IW47 = pd.DataFrame(All_Data_IW47)
+    df_IW47 = df_IW47.drop_duplicates()
+
+    df_IW47 = pd.merge(df_IW47,df_IW37nBase[['Orden','Revisión']], on='Orden',how='left')
+
+    df_IW47["RevisionIW47"] = "SEM" + df_IW47["Semana"].astype(str).str.zfill(2) + "-" + str(Anho)[-2:]
+    df_IW47["Condicional"] = np.where(df_IW47["Revisión"] != df_IW47["RevisionIW47"], 1, 0)
+    df_IW47 = df_IW47[df_IW47["Condicional"] == 1]
+
+    df_IW47 = df_IW47[["Orden","Op","Trbjo real","Nº pers.","FechaInicioReal","Semana"]]
+    df_IW47.drop_duplicates()
+
+    df_IW47["Trbjo real"] = (
+    df_IW47["Trbjo real"]
+    .astype(str)
+    .str.strip()
+    .str.replace(",", "")
+    .str.replace(r'(\d+\.?\d*)-', r'-\1', regex=True)
+    .astype(float)        
+    )
+
+    df_IW47.drop_duplicates(inplace=True)
+
+    
+    df_IW47 = df_IW47.groupby(['Orden',"Op","FechaInicioReal",'Semana'], as_index=False)['Trbjo real'].sum()
+    
+
+
+
+    df_IW47["FechaInicioReal"] = pd.to_datetime(df_IW47["FechaInicioReal"].str.replace(".", "/"), format="%d/%m/%Y").dt.date
+    df_IW47['FechaInicioReal'] = df_IW47['FechaInicioReal'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
+
+    df_IW47["Orden-Semana"] = df_IW47["Orden"].astype(str) + "-" + df_IW47["Semana"].astype(str)
+    df_IW47 = pd.merge(df_IW47,df_IW39[["Orden-Semana","CpoClasif", "P", "PtoTrbRes", "Status del sistema", "StatUsu", "Texto breve", "Ubicación técnica"]], on='Orden-Semana',how='left')
+    df_IW47["RevisionIW47"] = "SEM" + df_IW47["Semana"].astype(str).str.zfill(2) + "-" + str(Anho)[-2:]
+    df_IW47.rename(columns={'P':'Prioridad'}, inplace=True)
+    df_IW47.rename(columns={'Status del sistema':'Status Sistema Reportado'}, inplace=True)
+    df_IW47["Status Sistema Reportado"] = df_IW47["Status Sistema Reportado"].str[:9].str.strip()
+    df_IW47["Status Sistema Reportado"] = df_IW47["Status Sistema Reportado"].str[:9].str.strip()
+
+    df_IW47.rename(columns={'RevisionIW47':'Revisión'}, inplace=True)   
+    df_IW47 = df_IW47.drop_duplicates()
+    df_IW47 = pd.merge(df_IW47,df_IW37nReporte[['Orden-Semana','Inic.extr.']], on='Orden-Semana',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+    
+
+    df_IW47["UT"] = df_IW47["Ubicación técnica"].str[:13].str.strip()
+    
+    df_Condiciones.rename(columns={'StatusSistema':'Status Sistema Reportado'}, inplace=True)
+    
+
+    df_IW47 = pd.merge(df_IW47,df_Condiciones[['Status Sistema Reportado','StatusKPI']], on='Status Sistema Reportado',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+        
+    df_IW47 = pd.merge(df_IW47,df_Condiciones[['PtoTrbRes','Denominacion', 'AreaResponsable']], on='PtoTrbRes',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+        
+    df_IW47 = pd.merge(df_IW47,df_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+    
+    df_IW47['Temp'] = df_IW47["Ubicación técnica"].fillna('').str.startswith('JP11-MI1').astype(int)
+    df_IW47_Correctivo = df_IW47[df_IW47['Temp'] == 0]
+    df_IW47_Correctivo.drop(columns=["Temp"], inplace=True)
+    df_IW47_Correctivo.rename(columns={'Inic.extr.':'InicioExtremo'}, inplace=True)
+    #df_IW47_Correctivo = df_IW47.drop_duplicates(subset=['Orden'])
+
+    #df_IW37nReporte['Trbjo real'] = pd.to_numeric(df_IW37nReporte['Trbjo real'], errors='coerce')
+    #df_IW37nReporte = df_IW37nReporte.groupby(['Orden-Semana'], as_index=False)['Trbjo real'].sum()
+    #df_IW47_Correctivo = pd.merge(df_IW47,df_IW37nReporte[['Orden-Semana','Trbjo real']], on='Orden-Semana',how='left')
+
+    return df_IW47_Correctivo
+
+
+
 async def Process_IW29 (type: Optional[str]=None):
     
     if type is None:
@@ -936,8 +1119,6 @@ async def Process_IW29 (type: Optional[str]=None):
     df_dataResponsableEjecucionAvisos = pd.DataFrame(dataResponsableEjecucionAvisos)
     df_Condiciones = await Process_Condiciones_2()
 
-    print("N1")
-    print(df_IW29)
 
     df_IW29["Creado el"] = pd.to_datetime(df_IW29["Creado el"].str.replace(".", "/"), format="%d/%m/%Y").dt.date
     df_IW29['Creado el'] = df_IW29['Creado el'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
@@ -1096,6 +1277,32 @@ async def Get_Process_IW47 ():
         for chunk in df_result:
             yield from chunk
     return StreamingResponse(generate(), media_type='application/json')
+
+@router.get("/GetAndProcessIW47_Plan", tags=["Indicadores"])
+async def Get_Process_IW47_Plan ():
+    df_result = []  
+    
+    df_IW47 = await Process_IW47_Plan()
+    
+    function_return_Streaming(df_IW47,df_result)
+    def generate():
+        for chunk in df_result:
+            yield from chunk
+    return StreamingResponse(generate(), media_type='application/json')
+
+@router.get("/GetAndProcessIW47_Correctivo", tags=["Indicadores"])
+async def Get_Process_IW47_Correctivo ():
+    df_result = []  
+    
+    df_IW47 = await Process_IW47_Correctivo()
+    
+    function_return_Streaming(df_IW47,df_result)
+    def generate():
+        for chunk in df_result:
+            yield from chunk
+    return StreamingResponse(generate(), media_type='application/json')
+
+
 
 @router.get("/GetAndProcessIW29", tags=["Indicadores"])
 async def Get_Process_IW29 ():
@@ -1282,7 +1489,6 @@ async def Process_Backlog (PeriodoActual: Optional[str]=None): #Process_Baklog
     # return StreamingResponse(generate(), media_type='application/json')
     return Result_IW37nReporte
 
-
 @router.get("/GetAndProcessHHDisponibles", tags=["Indicadores"])
 async def Get_Process_HHDisponibles ():
     df_result = []  
@@ -1377,6 +1583,14 @@ async def Update_Data_Indicadores_To_Redis (
     print("Procesando IW47")
     df_IW47 = await Process_IW47(PeriodoActual) 
     print("---------------------------------------")
+
+    print("Procesando IW47_Plan")
+    #df_IW47_Plan = await Process_IW47_Plan(PeriodoActual) 
+    print("---------------------------------------")
+
+    print("Procesando IW47_Correctivo")
+    #df_IW47_Correctivo = await Process_IW47_Correctivo(PeriodoActual) 
+    print("---------------------------------------")
     
     
     Process_Status_Data_Indicadores = RedisDockers.get('Process_Status_Data_Indicadores')
@@ -1392,6 +1606,8 @@ async def Update_Data_Indicadores_To_Redis (
         RedisDockers.set('df_IW37nReporte',pickle.dumps(df_IW37nReporte))
         RedisDockers.set('df_IW37nBase',pickle.dumps(df_IW37nBase))
         RedisDockers.set('df_IW47',pickle.dumps(df_IW47))     
+        #RedisDockers.set('df_IW47_Plan',pickle.dumps(df_IW47_Plan))     
+        #RedisDockers.set('df_IW47_Correctivo',pickle.dumps(df_IW47_Correctivo))     
         RedisDockers.set('df_Backlog',pickle.dumps(df_Backlog))
         RedisDockers.set('df_HHDisponibles',pickle.dumps(df_HHDisponibles))
         RedisDockers.set('df_Criticidad',pickle.dumps(df_Criticidad))
@@ -1411,6 +1627,8 @@ async def Get_Data_Indicadores_From_Redis():
     pickled_IW37nReporte = RedisDockers.get('df_IW37nReporte')
     pickled_IW37nBase = RedisDockers.get('df_IW37nBase')
     pickled_IW47 = RedisDockers.get('df_IW47')      
+    #pickled_IW47_Plan = RedisDockers.get('df_IW47_Plan')      
+    #pickled_IW47_Correctivo = RedisDockers.get('df_IW47_Correctivo')      
     pickled_Backlog = RedisDockers.get('df_Backlog')
     pickled_HHDisponibles = RedisDockers.get('df_HHDisponibles')
     pickle_Criticidad = RedisDockers.get('df_Criticidad')
@@ -1420,6 +1638,8 @@ async def Get_Data_Indicadores_From_Redis():
     df_IW37nReporte = pickle.loads(pickled_IW37nReporte)
     df_IW37nBase = pickle.loads(pickled_IW37nBase)
     df_IW47 = pickle.loads(pickled_IW47)     
+    #df_IW47_Plan = pickle.loads(pickled_IW47_Plan)     
+    #df_IW47_Correctivo = pickle.loads(pickled_IW47_Correctivo)     
     df_Backlog = pickle.loads(pickled_Backlog)
     df_HHDisponibles = pickle.loads(pickled_HHDisponibles)
     df_Criticidad = pickle.loads(pickle_Criticidad)
@@ -1429,6 +1649,8 @@ async def Get_Data_Indicadores_From_Redis():
     df_IW37nReporte = df_IW37nReporte.where(pd.notnull(df_IW37nReporte), '')
     df_IW37nBase = df_IW37nBase.where(pd.notnull(df_IW37nBase), '')
     df_IW47 = df_IW47.where(pd.notnull(df_IW47), '')   
+    #df_IW47_Plan = df_IW47.where(pd.notnull(df_IW47_Plan), '')   
+    #df_IW47_Correctivo = df_IW47.where(pd.notnull(df_IW47_Correctivo), '')   
     df_Backlog = df_Backlog.where(pd.notnull(df_Backlog), '')
     df_HHDisponibles = df_HHDisponibles.where(pd.notnull(df_HHDisponibles), '')
     df_Criticidad = df_Criticidad.where(pd.notnull(df_Criticidad), '') 
@@ -1438,6 +1660,8 @@ async def Get_Data_Indicadores_From_Redis():
     data_IW37nReporte = df_IW37nReporte.to_dict(orient='records')
     data_IW37nBase = df_IW37nBase.to_dict(orient='records')
     data_IW47 = df_IW47.to_dict(orient='records')     
+    #data_IW47_Plan = df_IW47_Plan.to_dict(orient='records')     
+    #data_IW47_Correctivo = df_IW47_Correctivo.to_dict(orient='records')     
     data_Backlog = df_Backlog.to_dict(orient='records')
     data_HHDisponibles = df_HHDisponibles.to_dict(orient='records')
     data_Criticidad = df_Criticidad.to_dict(orient='records')
@@ -1451,6 +1675,8 @@ async def Get_Data_Indicadores_From_Redis():
         "data_IW37nReporte": data_IW37nReporte,
         "data_IW37nBase": data_IW37nBase,
         "data_IW47": data_IW47,
+        #"data_IW47_Plan": data_IW47_Plan,
+        #"data_IW47_Correctivo": data_IW47_Correctivo,
         "data_Backlog": data_Backlog,
         "data_HHDisponibles":  data_HHDisponibles,
         "data_Criticidad": data_Criticidad
