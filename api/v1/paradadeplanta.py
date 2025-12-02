@@ -721,7 +721,9 @@ async def Process_Curvas_S ():
     # print(df_Real)
 
     if len(df_Real) >0: 
-        df_Real["TimeReference"] = (pd.to_datetime('now', utc=True).tz_localize(None))
+        #df_Real["TimeReference"] = (pd.to_datetime('now', utc=True).tz_localize(None))
+
+        df_Real["TimeReference"] = (pd.to_datetime('now', utc=True).tz_localize(None) - timedelta(hours=5))
 
         #df_Real["TimeReference"] = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
