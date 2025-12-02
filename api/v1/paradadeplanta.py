@@ -299,6 +299,9 @@ def Rango_Eje_X_Area (df_LineaBase_Area, df_Real_Area, df_LineaBase_Area_Ajustad
 
 def Linea_Avance_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada):
 
+    # print("CBT")
+    # print(df_Real[df_Real["contratista"]=="CBT"])
+
     df_LineaBase_Contratista = df_LineaBase.groupby(["Ejex","contratista"])["hh_lb"].sum().reset_index()
 
 
@@ -395,6 +398,8 @@ def Rango_Eje_X_Contratista (df_LineaBase_Contratista, df_Real_Contratista, df_L
     }
 
 def Linea_Avance_Area_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada):
+
+
     df_LineaBase_Area_Contratista = df_LineaBase.groupby(["Ejex","contratista","area"])["hh_lb"].sum().reset_index()
     df_LineaBase_Area_Contratista.sort_values(["contratista","area", "Ejex"], inplace=True)
     #df_LineaBase_Contratista["hh_lb_cum"] = df_LineaBase_Contratista.groupby("contratista")["hh_lb"].cumsum()
@@ -406,10 +411,16 @@ def Linea_Avance_Area_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, 
     df_LineaBase_Area_Contratista_Ajustada.rename(columns={"contratista":"Filtro01", "area":"Filtro02"}, inplace=True)
     
     df_Real_Area_Contratista = df_Real.groupby(["Ejex","contratista","area"])["hh"].sum().reset_index()
+
+    
+
     df_Real_Area_Contratista.sort_values(["contratista","area", "Ejex"], inplace=True)
     #df_Real_Contratista["hh_real_cum"] = df_Real_Contratista.groupby("contratista")["hh"].cumsum()
     df_Real_Area_Contratista.rename(columns={"hh":"hh_real"}, inplace=True)
     df_Real_Area_Contratista.rename(columns={"contratista":"Filtro01", "area":"Filtro02"}, inplace=True)
+
+
+    
     
     df_Real_Area_Contratista_Ajustada = df_Real_Ajustada.groupby(["Ejex","contratista","area"])["hh"].sum().reset_index()
     df_Real_Area_Contratista_Ajustada.sort_values(["contratista","area", "Ejex"], inplace=True)
@@ -422,13 +433,20 @@ def Linea_Avance_Area_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, 
   
     df_LineaAreaContratista_Total = (result["df_ejeX_Normal"].merge(df_LineaBase_Area_Contratista, on=["Ejex", "Filtro01", "Filtro02"], how="left").merge(df_Real_Area_Contratista, on=["Ejex", "Filtro01", "Filtro02"], how="left"))
     df_LineaAreaContratista_Total.fillna(0, inplace=True)
+
+
+
+
     df_LineaAreaContratista_Total["hh_lb_cum"] = (df_LineaAreaContratista_Total.groupby(["Filtro01", "Filtro02"])["hh_lb"].cumsum())
     df_LineaAreaContratista_Total["hh_real_cum"] = (df_LineaAreaContratista_Total.groupby(["Filtro01", "Filtro02"])["hh_real"].cumsum())
-    
+
+
         
     df_LineaAreaContratista_Ajustada = (result["df_ejeX_Ajustada"].merge(df_LineaBase_Area_Contratista_Ajustada, on=["Ejex", "Filtro01", "Filtro02"], how="left").merge(df_Real_Area_Contratista_Ajustada, on=["Ejex", "Filtro01", "Filtro02"], how="left"))
     df_LineaAreaContratista_Ajustada.fillna(0, inplace=True)
     df_LineaAreaContratista_Ajustada["hh_lb_cum"] = (df_LineaAreaContratista_Ajustada.groupby(["Filtro01", "Filtro02"])["hh_lb"].cumsum())
+
+
     df_LineaAreaContratista_Ajustada["hh_real_cum"] = (df_LineaAreaContratista_Ajustada.groupby(["Filtro01", "Filtro02"])["hh_real"].cumsum())
     
     return {
@@ -692,8 +710,18 @@ async def Process_Curvas_S ():
     
     df_Real = df_Real[df_Real['inicioreal'].notnull()].copy()
 
+    df_Real["inicioreal"] = df_Real["inicioreal"].apply(
+    lambda x: x - timedelta(hours=5) if pd.notnull(x) else x
+    )
+
+    df_Real["finreal"] = df_Real["finreal"].apply(
+        lambda x: x - timedelta(hours=5) if pd.notnull(x) else x
+    )
+
+    # print(df_Real)
+
     if len(df_Real) >0: 
-        df_Real["TimeReference"] = pd.to_datetime('now', utc=True).tz_localize(None)
+        df_Real["TimeReference"] = (pd.to_datetime('now', utc=True).tz_localize(None))
 
         #df_Real["TimeReference"] = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
@@ -712,17 +740,22 @@ async def Process_Curvas_S ():
         df_Real["DifHorasHoras"] = abs(((df_Real["finreal"] - df_Real["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil))
 
         df_Real["hh"] = df_Real["DifHorasHorasNoRounded_Plan"] / df_Real["DifHorasHoras"]
+
+
         
         #df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
         df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(0, row['DifHorasHoras'], -1)] if row['DifHorasHoras'] < 0 else [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'])],axis=1)
         
         df_Real = df_Real.explode('Ejex')
-        print("df_Real: ")
-        print(df_Real["inicioreal"])
-        print(df_Real)
+        # print("df_Real: ")
+        # print(df_Real["inicioreal"])
+        # print(df_Real)
         df_Real['Ejex'] = df_Real['Ejex'].dt.ceil('h')
         df_Real["EV"] = df_Real["hh"]*df_Real["avance"]/100
         df_Real["hh"] = df_Real["EV"]
+
+        # print("CBT")
+        # print(df_Real[df_Real["contratista"] == "CBT"][["Ejex","inicioplan", "finplan","inicioreal", "finreal", "TimeReference", "DifHorasHoras_Plan", "DifHorasTimePlan", "DifHorasTime", "DifHorasHoras","hh","avance", "EV"]])
 
 
         df_Real_Ajustada = df_Real_Ajustada[df_Real_Ajustada['inicioreal'].notnull()].copy()
