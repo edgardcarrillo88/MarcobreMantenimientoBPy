@@ -890,13 +890,7 @@ async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
     df_IW47 = df_IW47.dropna(subset=['Area', 'SubArea'])
     df_IW47 = pd.concat([df_IW47, df_actualizar])
     df_IW47 = df_IW47.drop_duplicates()
-
-
-
-
-
-
-        
+  
     #df_IW47 = pd.merge(df_IW47,df_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
     #df_IW47 = df_IW47.drop_duplicates()
     
