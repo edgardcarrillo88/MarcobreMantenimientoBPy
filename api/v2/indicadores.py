@@ -45,8 +45,7 @@ def get_current_datetime():
     else:
         Semana = current_week
         Anho = current_year
-        #Semana =  "46"
-    Semana = "47" #Borrar esto es para el mensual
+        Semana =  "48"
     print("Semana: ",Semana,"Anho: ",Anho, "Anho anterior: ",Anho-1)
     return current_date, Semana, Anho
     
@@ -340,7 +339,8 @@ async def Process_IW37nReporte (PeriodoActual: Optional[str]=None):
         "Op.",
         "CpoClasif",
         "Texto breve",
-        "P"
+        "P",
+        "In.+tempr."
         ]]
     
     return df_IW37nReporte
@@ -855,6 +855,7 @@ async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
     df_IW47 = pd.merge(df_IW47,df_IW37nReporte[['Orden-Semana','Inic.extr.']], on='Orden-Semana',how='left')
     df_IW47 = df_IW47.drop_duplicates()
     
+    #Validaaaaaaaaaaaar AAAA
 
     df_IW47["UT"] = df_IW47["Ubicación técnica"].str[:13].str.strip()
     
@@ -866,9 +867,38 @@ async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
         
     df_IW47 = pd.merge(df_IW47,df_Condiciones[['PtoTrbRes','Denominacion', 'AreaResponsable']], on='PtoTrbRes',how='left')
     df_IW47 = df_IW47.drop_duplicates()
-        
-    df_IW47 = pd.merge(df_IW47,df_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
+
+
+#Nueva area
+
+
+    df_IW47["Concatenacion"] = df_IW47["Ubicación técnica"].str.cat(df_IW47["PtoTrbRes"], sep="-")
+    df_IW47["Concat"] = df_IW47["UT"].str.cat(df_IW47["PtoTrbRes"], sep="-")
+    df_IW47 = pd.merge(df_IW47, df_Condiciones[['Concatenacion','Area', 'SubArea']], on='Concatenacion',how='left')
+    df_IW47['Vacío'] = df_IW47.apply(lambda row: 'Sí' if pd.isnull(row['Area']) and pd.isnull(row['SubArea']) else 'No', axis=1)
+    
+    #merge con condicional
+    df_vacios = df_IW47[df_IW47['Area'].isnull() | df_IW47['SubArea'].isnull()]
+    result_unico = df_Condiciones.drop_duplicates(subset='Concat', keep='first')
+    df_actualizar = pd.merge(df_vacios,result_unico[['Concat', 'Area', 'SubArea']],on='Concat', how='left',suffixes=('', '_nuevo'))
+
+    df_actualizar['Area'] = df_actualizar.apply(lambda row: row['Area_nuevo'] if pd.isnull(row['Area']) else row['Area'], axis=1)
+    df_actualizar['SubArea'] = df_actualizar.apply(lambda row: row['SubArea_nuevo'] if pd.isnull(row['SubArea']) else row['SubArea'], axis=1)
+    df_actualizar = df_actualizar.drop(columns=['Area_nuevo', 'SubArea_nuevo'])
+
+    #Elimo en la principal los Area y subarea vacios
+    df_IW47 = df_IW47.dropna(subset=['Area', 'SubArea'])
+    df_IW47 = pd.concat([df_IW47, df_actualizar])
     df_IW47 = df_IW47.drop_duplicates()
+
+
+
+
+
+
+        
+    #df_IW47 = pd.merge(df_IW47,df_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
+    #df_IW47 = df_IW47.drop_duplicates()
     
     df_IW47['Temp'] = df_IW47["Ubicación técnica"].fillna('').str.startswith('JP11-MI1').astype(int)
     df_IW47_Correctivo = df_IW47[df_IW47['Temp'] == 0]
