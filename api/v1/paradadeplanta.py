@@ -112,6 +112,7 @@ async def Linea_Base():
 
 
     df_LineaBase['Ejex'] = df_LineaBase.apply(lambda row: [row['inicioplan'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
+
     df_LineaBase = df_LineaBase.explode('Ejex')
 
 
@@ -741,12 +742,16 @@ async def Process_Curvas_S ():
         df_Real["DifHorasTime"] = abs((df_Real["finreal"] - df_Real["inicioreal"]))
         df_Real["DifHorasHoras"] = abs(((df_Real["finreal"] - df_Real["inicioreal"]).dt.total_seconds() / 3600).apply(math.ceil))
 
+        df_Real["DifHorasHoras"] = df_Real["DifHorasHoras"].replace(0,1)
+
         df_Real["hh"] = df_Real["DifHorasHorasNoRounded_Plan"] / df_Real["DifHorasHoras"]
 
 
         
         #df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'] )], axis=1)
         df_Real['Ejex'] = df_Real.apply(lambda row: [row['inicioreal'] + timedelta(hours=i) for i in range(0, row['DifHorasHoras'], -1)] if row['DifHorasHoras'] < 0 else [row['inicioreal'] + timedelta(hours=i) for i in range(row['DifHorasHoras'])],axis=1)
+
+     
         
         df_Real = df_Real.explode('Ejex')
         # print("df_Real: ")
@@ -756,8 +761,7 @@ async def Process_Curvas_S ():
         df_Real["EV"] = df_Real["hh"]*df_Real["avance"]/100
         df_Real["hh"] = df_Real["EV"]
 
-        # print("CBT")
-        # print(df_Real[df_Real["contratista"] == "CBT"][["Ejex","inicioplan", "finplan","inicioreal", "finreal", "TimeReference", "DifHorasHoras_Plan", "DifHorasTimePlan", "DifHorasTime", "DifHorasHoras","hh","avance", "EV"]])
+ 
 
 
         df_Real_Ajustada = df_Real_Ajustada[df_Real_Ajustada['inicioreal'].notnull()].copy()
