@@ -699,6 +699,75 @@ def Linea_Avance_BloqueRC(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_
     }
 
 
+def Linea_Avance_Especialidad(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada):
+
+
+    df_LineaBase_Especialidad = df_LineaBase.groupby(["Ejex","especialidad"])["hh_lb"].sum().reset_index()
+
+
+    df_LineaBase_Especialidad.sort_values(["especialidad", "Ejex"], inplace=True)
+    df_LineaBase_Especialidad.rename(columns={"especialidad":"Filtro01"}, inplace=True)
+    
+    df_LineaBase_Especialidad_Ajustada = df_LineaBase_Ajustada.groupby(["Ejex","especialidad"])["hh_lb"].sum().reset_index()
+    df_LineaBase_Especialidad_Ajustada.sort_values(["especialidad", "Ejex"], inplace=True)
+    df_LineaBase_Especialidad_Ajustada.rename(columns={"especialidad":"Filtro01"}, inplace=True)
+    
+    df_Real_Especialidad = df_Real.groupby(["Ejex","especialidad"])["hh"].sum().reset_index() # Creo que debeería cambiar el HH por el EV
+    #df_Real_Especialidad = df_Real.groupby(["Ejex","contratista"])["EV"].sum().reset_index() # Creo que debeería cambiar el HH por el EV
+
+    
+    df_Real_Especialidad.sort_values(["especialidad", "Ejex"], inplace=True)
+    df_Real_Especialidad.rename(columns={"hh":"hh_real"}, inplace=True)
+    #df_Real_Especialidad.rename(columns={"EV":"hh_real"}, inplace=True)
+    df_Real_Especialidad.rename(columns={"especialidad":"Filtro01"}, inplace=True)
+
+    
+    df_Real_Especialidad_Ajustada = df_Real_Ajustada.groupby(["Ejex","especialidad"])["hh"].sum().reset_index()
+    df_Real_Especialidad_Ajustada.sort_values(["especialidad", "Ejex"], inplace=True)
+    df_Real_Especialidad_Ajustada.rename(columns={"hh":"hh_real"}, inplace=True)
+    df_Real_Especialidad_Ajustada.rename(columns={"especialidad":"Filtro01"}, inplace=True)
+    
+    result = Rango_Eje_X_Contratista(df_LineaBase_Especialidad, df_Real_Especialidad, df_LineaBase_Especialidad_Ajustada, df_Real_Especialidad_Ajustada)
+    
+    df_LineaEspecialidad_Total = (result["df_ejeX_Normal"].merge(df_LineaBase_Especialidad, on=["Ejex", "Filtro01"], how="left").merge(df_Real_Especialidad, on=["Ejex", "Filtro01"], how="left"))
+    df_LineaEspecialidad_Total.fillna(0, inplace=True)
+
+    
+    df_LineaEspecialidad_Total["hh_lb_cum"] = (
+    df_LineaEspecialidad_Total
+    .groupby("Filtro01")["hh_lb"]
+    .cumsum()
+    )
+
+    df_LineaEspecialidad_Total["hh_real_cum"] = (
+        df_LineaEspecialidad_Total
+        .groupby("Filtro01")["hh_real"]
+        .cumsum()
+    )
+
+ 
+        
+    df_LineaEspecialidad_Ajustada = (result["df_ejeX_Ajustada"].merge(df_LineaBase_Especialidad_Ajustada, on=["Ejex", "Filtro01"], how="left").merge(df_Real_Especialidad_Ajustada, on=["Ejex", "Filtro01"], how="left"))
+    df_LineaEspecialidad_Ajustada.fillna(0, inplace=True)
+    
+    df_LineaEspecialidad_Ajustada["hh_lb_cum"] = (
+    df_LineaEspecialidad_Ajustada
+    .groupby("Filtro01")["hh_lb"]
+    .cumsum()
+    )
+
+    df_LineaEspecialidad_Ajustada["hh_real_cum"] = (
+        df_LineaEspecialidad_Ajustada
+        .groupby("Filtro01")["hh_real"]
+        .cumsum()
+    )
+    
+    return {
+        "df_LineaEspecialidad_Total": df_LineaEspecialidad_Total,
+        "df_LineaEspecialidad_Ajustada": df_LineaEspecialidad_Ajustada
+    }
+
+
 
 async def Process_Curvas_S ():
 
@@ -726,7 +795,7 @@ async def Process_Curvas_S ():
 
         df_Real["TimeReference"] = (pd.to_datetime('now', utc=True).tz_localize(None) - timedelta(hours=5))
 
-        #df_Real["TimeReference"] = pd.to_datetime('2024-12-15')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        df_Real["TimeReference"] = pd.to_datetime('2025-12-05')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
         df_Real['TimeReference'] = df_Real['TimeReference'].dt.ceil('h')
 
@@ -782,6 +851,7 @@ async def Process_Curvas_S ():
     result_Linea_General = Linea_Avance_General(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_Area = Linea_Avance_Area(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_Contratista = Linea_Avance_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
+    result_Linea_Especialidad = Linea_Avance_Especialidad(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_Area_Contratista = Linea_Avance_Area_Contratista(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_Especialidad_Contratista = Linea_Avance_Contratista_Especialidad(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
     result_Linea_WhatIf = Linea_Avance_WhatIf(df_LineaBase, df_Real, df_LineaBase_Ajustada, df_Real_Ajustada)
@@ -812,6 +882,10 @@ async def Process_Curvas_S ():
         
         "df_CurvaBloqueRC_Total": result_Linea_BloqueRC["df_LineaBloqueRC_Total"],
         "df_CurvaBloqueRC_Ajustada": result_Linea_BloqueRC["df_LineaBloqueRC_Ajustada"],
+
+
+        "df_CurvaEspecialidad_Total": result_Linea_Especialidad["df_LineaEspecialidad_Total"],
+        "df_CurvaEspecialidad_Ajustada": result_Linea_Especialidad["df_LineaEspecialidad_Ajustada"],
     }
 
 async def Process_Curva_WhatIf (area, contratista):
@@ -899,7 +973,7 @@ async def Get_Process_BaseLine ():
     df_processed = await Process_Curvas_S()
     df_processedWhatIf = await Process_Curva_WhatIf(None, None)
     
-
+    print(df_processed["df_CurvaEspecialidad_Total"])
 
     dataframes = {
 
@@ -934,7 +1008,11 @@ async def Get_Process_BaseLine ():
         "CurvaBloqueRC": {
             "General": df_processed["df_CurvaBloqueRC_Total"],
             "Ajustada": df_processed["df_CurvaBloqueRC_Ajustada"],
-        }
+        },
+        "CurvaEspecialidad": {
+            "General": df_processed["df_CurvaEspecialidad_Total"],
+            "Ajustada": df_processed["df_CurvaEspecialidad_Ajustada"],
+        },
     }
     
     function_return_Streaming(dataframes,df_result)
