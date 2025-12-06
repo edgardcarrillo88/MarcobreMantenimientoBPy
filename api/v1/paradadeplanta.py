@@ -795,7 +795,7 @@ async def Process_Curvas_S ():
 
         df_Real["TimeReference"] = (pd.to_datetime('now', utc=True).tz_localize(None) - timedelta(hours=5))
 
-        df_Real["TimeReference"] = pd.to_datetime('2025-12-05')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        df_Real["TimeReference"] = pd.to_datetime('2025-12-04 10:00')  #|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
         df_Real['TimeReference'] = df_Real['TimeReference'].dt.ceil('h')
 
@@ -973,8 +973,6 @@ async def Get_Process_BaseLine ():
     df_processed = await Process_Curvas_S()
     df_processedWhatIf = await Process_Curva_WhatIf(None, None)
     
-    print(df_processed["df_CurvaEspecialidad_Total"])
-
     dataframes = {
 
         "CurvaGeneral": {
