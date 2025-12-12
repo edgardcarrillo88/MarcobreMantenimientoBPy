@@ -45,7 +45,7 @@ def get_current_datetime():
     else:
         Semana = current_week
         Anho = current_year
-        Semana =  "48"
+        Semana =  "49"
     print("Semana: ",Semana,"Anho: ",Anho, "Anho anterior: ",Anho-1)
     return current_date, Semana, Anho
     
@@ -272,18 +272,6 @@ async def Process_IW39 (PeriodoActual: Optional[str]=None):
 async def Process_IW37nReporte (PeriodoActual: Optional[str]=None):
     All_Data_IW37nReporte = []
     current_date, Semana, Anho = get_current_datetime()
-
-    # if type is None:
-    #     print("Obteniendo semanal IW37nReporte de la semana: ", Semana)
-    #     CursorIW37nReporte = db.iw37nreport.find({
-    #         "Semana": str(Semana),
-    #         "Anho": str(Anho)
-    #     })
-    # else:
-    #     print("Obteniendo anual IW37nReporte")
-    #     CursorIW37nReporte = db.iw37nreport.find({
-    #         "Anho": str(Anho),  
-    #     })
         
     def MongoDB_Anual():
         print("Obteniendo anual IW37nReporte")
@@ -321,9 +309,15 @@ async def Process_IW37nReporte (PeriodoActual: Optional[str]=None):
     df_IW37nReporte = pd.DataFrame(All_Data_IW37nReporte)
 
     df_IW37nReporte["Orden-Semana"] = df_IW37nReporte["Orden"].astype(str) + "-" + df_IW37nReporte["Semana"].astype(str)
+    df_IW37nReporte["Orden-Operacion-Semana"] = df_IW37nReporte["Orden"].astype(str) + "-" + df_IW37nReporte["Op."].astype(str) + "-" + df_IW37nReporte["Semana"].astype(str)
     df_IW37nReporte["Inic.extr."] = pd.to_datetime(df_IW37nReporte["Inic.extr."].str.replace(".", "/"), format="%d/%m/%Y").dt.date
     df_IW37nReporte['Inic.extr.'] = df_IW37nReporte['Inic.extr.'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
     
+    df_IW37nReporte["In.+tempr."] = pd.to_datetime(df_IW37nReporte["In.+tempr."].str.replace(".", "/"), format="%d/%m/%Y").dt.date
+    df_IW37nReporte['In.+tempr.'] = df_IW37nReporte['In.+tempr.'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
+    
+
+
     df_IW37nReporte = df_IW37nReporte[[
         "Orden",
         "Inic.extr.",
@@ -403,6 +397,8 @@ async def Process_IW37nBase (PeriodoActual: Optional[str]=None):
     df_IW37nBase["Orden-Semana"] = df_IW37nBase["Orden"].astype(str) + "-" + df_IW37nBase["Semana"].astype(str)
     df_IW37nBase["Inic.extr."] = pd.to_datetime(df_IW37nBase["Inic.extr."].str.replace(".", "/"), format="%d/%m/%Y").dt.date
     df_IW37nBase['Inic.extr.'] = df_IW37nBase['Inic.extr.'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
+    
+    
     df_IW37nBase = df_IW37nBase[
         [
         'Orden',
@@ -494,7 +490,6 @@ async def Process_IW37nBase_2 (PeriodoActual: Optional[str]=None):
     return df_IW37nBase
 
 
-
 @router.get("/GetAndProcessIW37NN", tags=["Indicadores"])
 async def Process_IW37NN (PeriodoActual: Optional[str]=None):
 
@@ -537,8 +532,6 @@ async def Process_IW37NN (PeriodoActual: Optional[str]=None):
     await id_to_string_process(Result,All_Data_IW37)
         
     df_IW37NN = pd.DataFrame(All_Data_IW37)
-
-    print(df_IW37NN)
     
     
     function_return_Streaming(df_IW37NN,df_result)
@@ -546,9 +539,6 @@ async def Process_IW37NN (PeriodoActual: Optional[str]=None):
         for chunk in df_result:
             yield from chunk
     return StreamingResponse(generate(), media_type='application/json')
-
-
-
 
 
 async def Process_IW47 (PeriodoActual: Optional[str]=None):
@@ -774,7 +764,7 @@ async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
     df_IW37nBase = await Process_IW37nBase(PeriodoActual)
     df_IW37nReporte = await Process_IW37nReporte(PeriodoActual)
     df_Condiciones = await Process_Condiciones_2()
-    df_IW39 = await Process_IW39(PeriodoActual)
+    #df_IW39 = await Process_IW39(PeriodoActual)
     
     def MongoDB_Anual():
         print("Obteniendo anual IW47")
@@ -833,17 +823,25 @@ async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
 
     df_IW47.drop_duplicates(inplace=True)
 
-    
+
+
+
     df_IW47 = df_IW47.groupby(['Orden',"Op","FechaInicioReal",'Semana'], as_index=False)['Trbjo real'].sum()
     
-
 
 
     df_IW47["FechaInicioReal"] = pd.to_datetime(df_IW47["FechaInicioReal"].str.replace(".", "/"), format="%d/%m/%Y").dt.date
     df_IW47['FechaInicioReal'] = df_IW47['FechaInicioReal'].apply(lambda x: pd.to_datetime(x, unit='ms') if isinstance(x, (int, float)) else pd.to_datetime(x)).dt.strftime('%Y-%m-%dT%H:%M:%S')
 
     df_IW47["Orden-Semana"] = df_IW47["Orden"].astype(str) + "-" + df_IW47["Semana"].astype(str)
-    df_IW47 = pd.merge(df_IW47,df_IW39[["Orden-Semana","CpoClasif", "P", "PtoTrbRes", "Status del sistema", "StatUsu", "Texto breve", "Ubicación técnica"]], on='Orden-Semana',how='left')
+    #df_IW47["Orden-Operacion-Semana"] = df_IW47["Orden"].astype(str) + "-" + df_IW47["Op."].astype(str) + "-" + df_IW47["Semana"].astype(str) #Esto va a servir cuando hagamos los calculos a nivel de operaciones
+    #df_IW47 = pd.merge(df_IW47,df_IW39[["Orden-Semana","CpoClasif", "P", "PtoTrbRes", "Status del sistema", "StatUsu", "Texto breve", "Ubicación técnica"]], on='Orden-Semana',how='left')
+    df_IW47 = pd.merge(df_IW47,df_IW37nReporte[["Orden-Semana","CpoClasif", "P", "PtoTrbRes", "Stat.sist.", "StatUsu", "Texto breve", "Ubic.técn."]], on='Orden-Semana',how='left')
+    df_IW47 = df_IW47.drop_duplicates()
+    df_IW47.rename(columns={'Stat.sist.':'Status del sistema', 'Ubic.técn.':'Ubicación técnica'}, inplace=True)
+
+
+    
     df_IW47["RevisionIW47"] = "SEM" + df_IW47["Semana"].astype(str).str.zfill(2) + "-" + str(Anho)[-2:]
     df_IW47.rename(columns={'P':'Prioridad'}, inplace=True)
     df_IW47.rename(columns={'Status del sistema':'Status Sistema Reportado'}, inplace=True)
@@ -854,6 +852,8 @@ async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
     df_IW47 = df_IW47.drop_duplicates()
     df_IW47 = pd.merge(df_IW47,df_IW37nReporte[['Orden-Semana','Inic.extr.']], on='Orden-Semana',how='left')
     df_IW47 = df_IW47.drop_duplicates()
+
+
     
     #Validaaaaaaaaaaaar AAAA
 
@@ -867,6 +867,7 @@ async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
         
     df_IW47 = pd.merge(df_IW47,df_Condiciones[['PtoTrbRes','Denominacion', 'AreaResponsable']], on='PtoTrbRes',how='left')
     df_IW47 = df_IW47.drop_duplicates()
+
 
 
 #Nueva area
@@ -890,6 +891,7 @@ async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
     df_IW47 = df_IW47.dropna(subset=['Area', 'SubArea'])
     df_IW47 = pd.concat([df_IW47, df_actualizar])
     df_IW47 = df_IW47.drop_duplicates()
+
   
     #df_IW47 = pd.merge(df_IW47,df_Condiciones[['UT','Area', 'SubArea']], on='UT',how='left')
     #df_IW47 = df_IW47.drop_duplicates()
@@ -904,8 +906,9 @@ async def Process_IW47_Correctivo (PeriodoActual: Optional[str]=None):
     #df_IW37nReporte = df_IW37nReporte.groupby(['Orden-Semana'], as_index=False)['Trbjo real'].sum()
     #df_IW47_Correctivo = pd.merge(df_IW47,df_IW37nReporte[['Orden-Semana','Trbjo real']], on='Orden-Semana',how='left')
 
+    print("Cantidad de datos IW47",len(df_IW47_Correctivo))
+    
     return df_IW47_Correctivo
-
 
 
 async def Process_IW29 (type: Optional[str]=None):
@@ -1198,7 +1201,6 @@ async def Process_IW29 (type: Optional[str]=None):
 #-----------------------------------------------------------------------
 
 
-
 #Proceso de Tratamiento y respuesta a cliente Individual
 @router.get("/GetAndProcessIW39", tags=["Indicadores"])
 async def Get_Process_IW39 ():
@@ -1318,7 +1320,9 @@ async def Get_Process_IW47_Plan ():
 async def Get_Process_IW47_Correctivo ():
     df_result = []  
     
+    print("holi holi")
     df_IW47 = await Process_IW47_Correctivo()
+    print(len(df_IW47))
     
     function_return_Streaming(df_IW47,df_result)
     def generate():
@@ -1356,7 +1360,6 @@ async def Process_IW37nBase_3(PeriodoActual: Optional[str]=None):
     Result_IW39 = await Process_IW39 (PeriodoActual)
 
     Result_IW39 = Result_IW39[["Status del sistema","Orden-Semana"]]
-    print(Result_IW39)
     df_IW37nBase = pd.merge(df_IW37nBase, Result_IW39, on='Orden-Semana',how='left')
     df_IW37nBase.rename(columns={'Status del sistema':'Status Sistema Reportado'}, inplace=True)
 
@@ -1502,9 +1505,7 @@ async def Process_Backlog (PeriodoActual: Optional[str]=None): #Process_Baklog
     Result_IW37nReporte['Orden'] = Result_IW37nReporte['Orden'].astype(str)
     Result_IW37nReporte['Semana'] = Result_IW37nReporte['Semana'].astype(str)
     Result_IW37nReporte['Op.'] = Result_IW37nReporte['Op.'].astype(str)
-    print("Nº1:",len(Result_IW37nReporte))
     Result_IW37nReporte = Result_IW37nReporte.drop_duplicates(subset=['Orden', 'Semana', 'Op.']) ##SE24: quitamos duplicados en el DF final
-    print("Nº2:",len(Result_IW37nReporte))
     
     # function_return_Streaming(Result_IW37nReporte,df_result)
     # def generate():
